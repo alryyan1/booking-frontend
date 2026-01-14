@@ -93,6 +93,24 @@ export const bookingsAPI = {
   export: (params) => api.get('/bookings/export', { params, responseType: 'blob' }),
 };
 
+// Items API
+export const itemsAPI = {
+  getAll: (params) => api.get('/items', { params }),
+  getById: (id) => api.get(`/items/${id}`),
+  create: (data) => api.post('/items', data),
+  update: (id, data) => api.put(`/items/${id}`, data),
+  delete: (id) => api.delete(`/items/${id}`),
+};
+
+// Customers API
+export const customersAPI = {
+  getAll: (params) => api.get('/customers', { params }),
+  getById: (id) => api.get(`/customers/${id}`),
+  create: (data) => api.post('/customers', data),
+  update: (id, data) => api.put(`/customers/${id}`, data),
+  delete: (id) => api.delete(`/customers/${id}`),
+};
+
 // Reports API
 export const reportsAPI = {
   bookings: (params) => api.get('/reports/bookings', { params }),

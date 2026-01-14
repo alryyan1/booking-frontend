@@ -24,12 +24,16 @@ const BookingCell = ({ booking, onClick }) => {
       onClick={onClick}
     >
       <div className="text-xs font-semibold">{booking.invoice_number}</div>
-      <div className="text-xs">{booking.attire_name}</div>
-      <div className="text-xs text-gray-600">{booking.phone_number}</div>
-      <div className="text-xs font-medium mt-1">
-        {booking.payment_status === 'paid' ? '✓ Paid' : 
-         booking.payment_status === 'partial' ? '~ Partial' : 
-         '○ Pending'}
+      <div className="text-[10px] text-indigo-700 font-bold leading-tight mt-0.5 truncate uppercase tracking-tighter">
+        {booking.items?.length > 0 
+          ? booking.items.map(i => i.name).join(', ') 
+          : 'No Items'}
+      </div>
+      <div className="text-xs text-slate-800 font-bold mt-1 truncate uppercase">
+        {booking.customer?.name || booking.phone_number}
+      </div>
+      <div className="text-[10px] font-black mt-1 uppercase tracking-widest text-emerald-600">
+        ${parseFloat(booking.remaining_balance).toFixed(0)} Left
       </div>
     </td>
   );

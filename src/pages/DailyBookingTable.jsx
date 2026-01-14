@@ -168,7 +168,8 @@ const DailyBookingTable = () => {
     ? bookings.filter(
         (b) =>
           b.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          b.phone_number.includes(searchTerm)
+          b.phone_number.includes(searchTerm) ||
+          b.items?.some(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()))
       )
     : bookings;
 
@@ -223,7 +224,7 @@ const DailyBookingTable = () => {
           <table className="min-w-full border-collapse">
             <thead>
               <tr>
-                <th className="border border-gray-300 bg-gray-100 p-2 text-left font-semibold sticky left-0 z-10 bg-gray-100">
+                <th className="border border-gray-300 bg-gray-100 p-2 text-left font-semibold sticky left-0 z-10">
                   Time Slot
                 </th>
                 {days.map((day, index) => (
@@ -242,7 +243,7 @@ const DailyBookingTable = () => {
             <tbody>
               {timeSlots.map((slot) => (
                 <tr key={slot.id}>
-                  <td className="border border-gray-300 bg-gray-50 p-2 font-medium sticky left-0 z-10 bg-gray-50">
+                  <td className="border border-gray-300 bg-gray-50 p-2 font-medium sticky left-0 z-10">
                     {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
                   </td>
                   {days.map((day, dayIndex) => (

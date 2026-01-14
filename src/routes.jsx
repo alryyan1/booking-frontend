@@ -12,7 +12,9 @@ const CategorySelection = lazy(() => import('./pages/CategorySelection'));
 const WeekSelection = lazy(() => import('./pages/WeekSelection'));
 const DailyBookingTable = lazy(() => import('./pages/DailyBookingTable'));
 const BookingsList = lazy(() => import('./pages/BookingsList'));
+const CustomersList = lazy(() => import('./pages/CustomersList')); // Added CustomersList
 const UsersList = lazy(() => import('./pages/UsersList'));
+const ItemsList = lazy(() => import('./pages/ItemsList'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Reports = lazy(() => import('./pages/Reports'));
 
@@ -80,6 +82,10 @@ export const router = createBrowserRouter([
         element: <Reports />,
       },
       {
+        path: '/customers',
+        element: <CustomersList />,
+      },
+      {
         element: (
           <AdminRoute>
             <Outlet />
@@ -89,6 +95,10 @@ export const router = createBrowserRouter([
           {
             path: '/users',
             element: <UsersList />,
+          },
+          {
+            path: '/items',
+            element: <ItemsList />,
           },
           {
             path: '/settings',

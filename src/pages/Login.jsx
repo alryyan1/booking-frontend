@@ -72,7 +72,7 @@ const Login = () => {
             className="mt-12 flex items-center space-x-4 text-indigo-200/60 text-sm"
           >
             <div className="w-12 h-px bg-indigo-500/30" />
-            <span>Trusted by industry leaders</span>
+            {/* <span>Trusted by industry leaders</span> */}
           </motion.div>
         </div>
       </motion.div>
