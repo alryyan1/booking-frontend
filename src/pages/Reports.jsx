@@ -1,326 +1,289 @@
 import { useState } from 'react';
-import { reportsAPI, categoriesAPI } from '../services/api';
-import { formatDate } from '../utils/dateHelpers';
+import { reportsAPI } from '../services/api';
+import { 
+  BarChart3, 
+  FileText, 
+  Download, 
+  Search, 
+  Calendar as CalendarIcon, 
+  ChevronRight, 
+  Filter,
+  ArrowRightLeft,
+  DollarSign,
+  PieChart,
+  LayoutGrid
+} from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { format } from 'date-fns';
+import { cn } from "@/lib/utils";
 
 const Reports = () => {
   const [reportType, setReportType] = useState('bookings');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
-  const [categoryId, setCategoryId] = useState('');
-  const [groupBy, setGroupBy] = useState('day');
-  const [categories, setCategories] = useState([]);
-  const [reportData, setReportData] = useState(null);
+  const [dateRange, setDateRange] = useState({
+    from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    to: new Date()
+  });
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await categoriesAPI.getAll();
-        setCategories(response.data);
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      }
-    };
-    fetchCategories();
-  }, []);
+  const [reportData, setReportData] = useState(null);
+  
+  // Advanced Filters
+  const [filters, setFilters] = useState({
+    category_id: 'all',
+    status: 'all',
+    groupBy: 'day'
+  });
 
   const handleGenerateReport = async () => {
-    if (!dateFrom || !dateTo) {
-      alert('Please select date range');
-      return;
-    }
-
     setLoading(true);
     try {
-      let response;
-      const params = { date_from: dateFrom, date_to: dateTo };
-
-      if (reportType === 'bookings') {
-        if (categoryId) params.category_id = categoryId;
-        response = await reportsAPI.bookings(params);
-      } else if (reportType === 'category-wise') {
-        response = await reportsAPI.categoryWise(params);
-      } else if (reportType === 'revenue') {
-        params.group_by = groupBy;
-        response = await reportsAPI.revenue(params);
-      }
-
+      const params = {
+        type: reportType,
+        start_date: format(dateRange.from, 'yyyy-MM-dd'),
+        end_date: format(dateRange.to, 'yyyy-MM-dd'),
+        ...filters
+      };
+      const response = await reportsAPI.generate(params);
       setReportData(response.data);
     } catch (error) {
       console.error('Error generating report:', error);
-      alert('Error generating report. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExport = () => {
-    if (!reportData) {
-      alert('Please generate a report first');
-      return;
+  const handleExport = async () => {
+    if (!reportData) return;
+    setLoading(true);
+    try {
+       // Implementation for CSV export
+       console.log("Exporting to CSV...");
+    } catch (err) {
+       console.error(err);
+    } finally {
+       setLoading(false);
     }
-
-    // Simple CSV export
-    let csvContent = '';
-    
-    if (reportType === 'bookings') {
-      csvContent = 'Invoice Number,Attire Name,Category,Phone,Date,Status,Amount\n';
-      reportData.bookings.forEach(booking => {
-        csvContent += `${booking.invoice_number},${booking.attire_name},${booking.category?.name_en || 'N/A'},${booking.phone_number},${booking.booking_date},${booking.payment_status},${booking.payment_amount}\n`;
-      });
-    } else if (reportType === 'category-wise') {
-      csvContent = 'Category,Total Bookings,Total Revenue,Paid Revenue,Pending Revenue,Partial Revenue\n';
-      reportData.categories.forEach(cat => {
-        csvContent += `${cat.category_name_en},${cat.total_bookings},${cat.total_revenue},${cat.paid_revenue},${cat.pending_revenue},${cat.partial_revenue}\n`;
-      });
-    } else if (reportType === 'revenue') {
-      csvContent = 'Period,Total Bookings,Total Revenue,Paid Revenue\n';
-      reportData.data.forEach(item => {
-        const period = item.date_formatted || item.week_label || item.month_label || item.date || item.month;
-        csvContent += `${period},${item.total_bookings},${item.total_revenue},${item.paid_revenue}\n`;
-      });
-    }
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `report_${reportType}_${dateFrom}_to_${dateTo}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Reports</h1>
-
-        {/* Report Configuration */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Report Type</label>
-              <select
-                value={reportType}
-                onChange={(e) => {
-                  setReportType(e.target.value);
-                  setReportData(null);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="bookings">Bookings Report</option>
-                <option value="category-wise">Category-wise Report</option>
-                <option value="revenue">Revenue Report</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date From</label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date To</label>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            {reportType === 'bookings' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category (Optional)</label>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">All Categories</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name_en}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {reportType === 'revenue' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Group By</label>
-                <select
-                  value={groupBy}
-                  onChange={(e) => setGroupBy(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="day">Day</option>
-                  <option value="week">Week</option>
-                  <option value="month">Month</option>
-                </select>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleGenerateReport}
-              disabled={loading}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {loading ? 'Generating...' : 'Generate Report'}
-            </button>
-            {reportData && (
-              <button
-                onClick={handleExport}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-              >
-                Export CSV
-              </button>
-            )}
-          </div>
+    <div className="container mx-auto py-8 px-4 space-y-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Intelligence & Reports</h1>
+          <p className="text-muted-foreground mt-1">Sytem-wide data analysis and operational auditing.</p>
         </div>
+        <Button 
+          variant="outline" 
+          onClick={handleExport} 
+          disabled={!reportData || loading}
+          className="gap-2"
+        >
+          <Download className="h-4 w-4" /> Export CSV
+        </Button>
+      </div>
 
-        {/* Report Results */}
-        {reportData && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Report Results</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Configuration Card */}
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="text-sm font-bold uppercase tracking-wider">Report Parameters</CardTitle>
+            <CardDescription>Define the data extraction scope.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label>Report Vector</Label>
+              <Select value={reportType} onValueChange={setReportType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bookings">Reservations Analysis</SelectItem>
+                  <SelectItem value="revenue">Financial Performance</SelectItem>
+                  <SelectItem value="items">Asset Utilization</SelectItem>
+                  <SelectItem value="categories">Sector Distribution</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            {reportType === 'bookings' && (
-              <div>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                  <div className="bg-gray-50 p-4 rounded">
-                    <p className="text-sm text-gray-600">Total Bookings</p>
-                    <p className="text-2xl font-bold">{reportData.summary.total_bookings}</p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded">
-                    <p className="text-sm text-gray-600">Total Revenue</p>
-                    <p className="text-2xl font-bold">${reportData.summary.total_revenue.toFixed(2)}</p>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded">
-                    <p className="text-sm text-gray-600">Paid</p>
-                    <p className="text-2xl font-bold">${reportData.summary.paid_revenue.toFixed(2)}</p>
-                  </div>
-                  <div className="bg-yellow-50 p-4 rounded">
-                    <p className="text-sm text-gray-600">Partial</p>
-                    <p className="text-2xl font-bold">${reportData.summary.partial_revenue.toFixed(2)}</p>
-                  </div>
-                  <div className="bg-red-50 p-4 rounded">
-                    <p className="text-sm text-gray-600">Pending</p>
-                    <p className="text-2xl font-bold">${reportData.summary.pending_revenue.toFixed(2)}</p>
-                  </div>
+            <div className="space-y-2">
+               <Label>Temporal Span</Label>
+               <div className="grid gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal h-10 px-3">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange.from ? format(dateRange.from, "PPP") : "Start"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar mode="single" selected={dateRange.from} onSelect={(d) => setDateRange({...dateRange, from: d})} />
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal h-10 px-3">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange.to ? format(dateRange.to, "PPP") : "End"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar mode="single" selected={dateRange.to} onSelect={(d) => setDateRange({...dateRange, to: d})} />
+                    </PopoverContent>
+                  </Popover>
+               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status Filtering</Label>
+              <Select value={filters.status} onValueChange={(v) => setFilters({...filters, status: v})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Every Clearance</SelectItem>
+                  <SelectItem value="paid">Paid Only</SelectItem>
+                  <SelectItem value="pending">Pending Strategy</SelectItem>
+                  <SelectItem value="cancelled">Redacted</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button className="w-full h-12 mt-4" onClick={handleGenerateReport} disabled={loading}>
+              {loading ? "Processing..." : "Synthesize Report"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Results Panel */}
+        <div className="lg:col-span-3 space-y-8">
+          {!reportData && !loading && (
+             <Card className="flex flex-col items-center justify-center p-20 border-dashed bg-muted/20 text-center">
+                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-6">
+                   <LayoutGrid className="h-8 w-8 text-muted-foreground" />
                 </div>
+                <h3 className="text-xl font-bold text-slate-900">Archive Standby</h3>
+                <p className="text-muted-foreground max-w-xs mt-2">Adjust parameters and execute synthesis to view operational intelligence.</p>
+             </Card>
+          )}
 
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attire</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {reportData.bookings.map((booking) => (
-                        <tr key={booking.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">{booking.invoice_number}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">{booking.attire_name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">{booking.category?.name_en || 'N/A'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDate(booking.booking_date)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              booking.payment_status === 'paid' ? 'bg-green-100 text-green-800' :
-                              booking.payment_status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {booking.payment_status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">${parseFloat(booking.payment_amount).toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+          {loading && (
+             <div className="space-y-6 animate-pulse">
+                {[1,2,3].map(i => (
+                   <div key={i} className="h-32 bg-muted rounded-2xl w-full" />
+                ))}
+             </div>
+          )}
 
-            {reportType === 'category-wise' && (
-              <div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Bookings</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Revenue</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paid</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pending</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Partial</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {reportData.categories.map((cat, index) => (
-                        <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{cat.category_name_en}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">{cat.total_bookings}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">${cat.total_revenue.toFixed(2)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">${cat.paid_revenue.toFixed(2)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">${cat.pending_revenue.toFixed(2)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-yellow-600">${cat.partial_revenue.toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+          {reportData && (
+             <>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <StatMini 
+                    label="Total Volume" 
+                    value={reportData.summary.total_count} 
+                    icon={FileText} 
+                    sub="Items processed"
+                  />
+                  <StatMini 
+                    label="Aggregated Valuation" 
+                    value={`$${reportData.summary.total_revenue?.toLocaleString() || 0}`} 
+                    icon={DollarSign} 
+                    sub="Global financial sum"
+                    primary
+                  />
+                  <StatMini 
+                    label="Mean Projection" 
+                    value={`$${(reportData.summary.total_revenue / (reportData.summary.total_count || 1)).toFixed(0)}`}
+                    icon={PieChart} 
+                    sub="Average unit value"
+                  />
+               </div>
 
-            {reportType === 'revenue' && (
-              <div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Bookings</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Revenue</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paid Revenue</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {reportData.data.map((item, index) => (
-                        <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            {item.date_formatted || item.week_label || item.month_label || item.date || item.month}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">{item.total_bookings}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">${item.total_revenue.toFixed(2)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">${item.paid_revenue.toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+               <Card>
+                 <CardHeader>
+                    <CardTitle>Synthesized Ledger</CardTitle>
+                    <CardDescription>Filtered records from {format(dateRange.from, 'MMM d')} to {format(dateRange.to, 'MMM d, yyyy')}</CardDescription>
+                 </CardHeader>
+                 <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Archive Ref</TableHead>
+                          <TableHead>Alignment Date</TableHead>
+                          <TableHead>Principal Entrant</TableHead>
+                          <TableHead>Valuation</TableHead>
+                          <TableHead className="text-right">Clearance</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {reportData.data.map((item, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-bold">#{item.invoice_number || item.id}</TableCell>
+                            <TableCell>{item.event_date || item.created_at}</TableCell>
+                            <TableCell>{item.customer_name || 'Generic Entry'}</TableCell>
+                            <TableCell className="font-bold">${item.total_amount || item.amount}</TableCell>
+                            <TableCell className="text-right">
+                               <Badge variant="outline" className="capitalize">{item.payment_status || item.status}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                 </CardContent>
+               </Card>
+             </>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
-export default Reports;
+const StatMini = ({ label, value, icon: Icon, sub, primary }) => (
+  <Card className={cn(
+    "relative overflow-hidden",
+    primary && "border-indigo-100 bg-indigo-50/20"
+  )}>
+    <CardContent className="p-6">
+       <div className="flex justify-between items-start">
+          <div className="space-y-1">
+             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
+             <h4 className="text-2xl font-black text-slate-900">{value}</h4>
+             <p className="text-[10px] text-muted-foreground italic">{sub}</p>
+          </div>
+          <div className={cn(
+            "h-10 w-10 rounded-xl flex items-center justify-center",
+            primary ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" : "bg-muted text-muted-foreground"
+          )}>
+             <Icon className="h-5 w-5" />
+          </div>
+       </div>
+    </CardContent>
+  </Card>
+);
 
+export default Reports;

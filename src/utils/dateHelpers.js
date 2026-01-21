@@ -36,13 +36,28 @@ export const getWeeksInMonth = (month, year) => {
     if (weeks.length >= 6) break; // Safety check
   }
   
-  return weeks.slice(0, 4); // Return only first 4 weeks
+  return weeks;
 };
 
-export const getDaysInWeek = (weekStart, weekEnd) => {
+export const getMonthWeeks = (year, month) => {
+  const weeks = getWeeksInMonth(month, year);
+  return weeks.map(w => ({
+    id: w.weekNumber,
+    label: `${w.startDateFormatted} - ${w.endDateFormatted}`,
+    startDate: w.startDate,
+    endDate: w.endDate
+  }));
+};
+
+export const getWeekDays = (year, month, weekId) => {
+  const weeks = getWeeksInMonth(month, year);
+  const selectedWeek = weeks.find(w => w.weekNumber === parseInt(weekId));
+  
+  if (!selectedWeek) return [];
+  
   return eachDayOfInterval({
-    start: new Date(weekStart),
-    end: new Date(weekEnd),
+    start: new Date(selectedWeek.startDate),
+    end: new Date(selectedWeek.endDate),
   });
 };
 
@@ -58,4 +73,3 @@ export const formatTime = (time) => {
   const displayHour = hour % 12 || 12;
   return `${displayHour}:${minutes} ${ampm}`;
 };
-

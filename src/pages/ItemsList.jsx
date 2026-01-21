@@ -1,5 +1,45 @@
 import { useState, useEffect } from 'react';
 import { itemsAPI, categoriesAPI } from '../services/api';
+import { 
+  Plus, 
+  Search, 
+  Edit2, 
+  Trash2, 
+  Package, 
+  Tag, 
+  Layers, 
+  Filter,
+  AlertCircle
+} from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 const ItemsList = () => {
   const [items, setItems] = useState([]);
@@ -7,22 +47,28 @@ const ItemsList = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  
   const [formData, setFormData] = useState({
     name: '',
-    price: '',
-    category_id: '',
+    reference: '',
     description: '',
+    category_id: '',
+    price: 0,
+    status: 'available'
   });
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedCategory]);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const [itemsRes, categoriesRes] = await Promise.all([
-        itemsAPI.getAll(),
-        categoriesAPI.getAll(),
+        itemsAPI.getAll(selectedCategory !== 'all' ? { category_id: selectedCategory } : {}),
+        categoriesAPI.getAll()
       ]);
       setItems(itemsRes.data);
       setCategories(categoriesRes.data);
@@ -38,17 +84,21 @@ const ItemsList = () => {
       setEditingItem(item);
       setFormData({
         name: item.name,
-        price: item.price,
-        category_id: item.category_id,
+        reference: item.reference || '',
         description: item.description || '',
+        category_id: item.category_id,
+        price: item.price,
+        status: item.status
       });
     } else {
       setEditingItem(null);
       setFormData({
         name: '',
-        price: '',
-        category_id: '',
+        reference: '',
         description: '',
+        category_id: '',
+        price: 0,
+        status: 'available'
       });
     }
     setShowModal(true);
@@ -62,8 +112,8 @@ const ItemsList = () => {
       } else {
         await itemsAPI.create(formData);
       }
-      fetchData();
       setShowModal(false);
+      fetchData();
     } catch (error) {
       console.error('Error saving item:', error);
     }
@@ -80,139 +130,189 @@ const ItemsList = () => {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-lg">Loading inventory...</div>;
+  const filteredItems = items.filter(item => 
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.reference && item.reference.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
+    <div className="container mx-auto py-8 px-4 space-y-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Inventory Management</h1>
-          <p className="text-slate-500 mt-1">Manage your dresses and pricing</p>
+          <h1 className="text-3xl font-bold tracking-tight">Inventory</h1>
+          <p className="text-muted-foreground mt-1">Manage your rental items and catalog.</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-        >
-          + Add New Item
-        </button>
+        <Button onClick={() => handleOpenModal()} className="gap-2">
+          <Plus className="w-4 h-4" /> Add Item
+        </Button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 border-b border-slate-100">
-            <tr>
-              <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Category</th>
-              <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Price</th>
-              <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</th>
-              <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {items.map((item) => (
-              <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-6 py-4 font-medium text-slate-900">{item.name}</td>
-                <td className="px-6 py-4 text-slate-600">
-                  <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-sm">
-                    {item.category?.name_en || 'N/A'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 font-semibold text-indigo-600">${item.price}</td>
-                <td className="px-6 py-4 text-slate-500 text-sm">{item.description || '-'}</td>
-                <td className="px-6 py-4 text-right space-x-3">
-                  <button
-                    onClick={() => handleOpenModal(item)}
-                    className="text-slate-400 hover:text-indigo-600 transition-colors font-medium text-sm"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="text-slate-400 hover:text-red-600 transition-colors font-medium text-sm"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search name or reference..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger className="w-full md:w-[200px]">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories.map(cat => (
+              <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name_en}</SelectItem>
             ))}
-          </tbody>
-        </table>
+          </SelectContent>
+        </Select>
       </div>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100">
-              <h2 className="text-xl font-bold text-slate-900">
-                {editingItem ? 'Edit Item' : 'Add New Item'}
-              </h2>
-            </div>
-            <form onSubmit={handleSubmit} className="p-8 space-y-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Item Name</label>
-                <input
-                  type="text"
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[100px]">ID</TableHead>
+              <TableHead>Item Details</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Rental Price</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">Loading items...</TableCell>
+              </TableRow>
+            ) : filteredItems.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">No items found.</TableCell>
+              </TableRow>
+            ) : (
+              filteredItems.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium text-muted-foreground">#{item.id}</TableCell>
+                  <TableCell>
+                    <div className="font-medium">{item.name}</div>
+                    {item.reference && <div className="text-xs text-muted-foreground">Ref: {item.reference}</div>}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{item.category?.name_en}</Badge>
+                  </TableCell>
+                  <TableCell className="font-semibold">${item.price}</TableCell>
+                  <TableCell>
+                    <Badge variant={item.status === 'available' ? 'success' : 'outline'}>
+                      {item.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Button variant="ghost" size="icon" onClick={() => handleOpenModal(item)}>
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="text-red-600">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>{editingItem ? 'Edit Item' : 'Add New Item'}</DialogTitle>
+            <DialogDescription>
+              Enter the details for your inventory item below.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2 col-span-2">
+                <Label htmlFor="name">Item Name</Label>
+                <Input
+                  id="name"
                   required
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Category</label>
-                  <select
-                    required
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                    value={formData.category_id}
-                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name_en}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Price</label>
-                  <input
+              <div className="space-y-2">
+                <Label htmlFor="reference">Reference / SKU</Label>
+                <Input
+                  id="reference"
+                  value={formData.reference}
+                  onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="price">Rental Price</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    id="price"
                     type="number"
-                    step="0.01"
+                    className="pl-7"
                     required
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Description</label>
-                <textarea
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                  rows="3"
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Select
+                  value={formData.category_id?.toString()}
+                  onValueChange={(val) => setFormData({ ...formData, category_id: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name_en}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(val) => setFormData({ ...formData, status: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="available">Available</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Optional details..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
               </div>
-              <div className="flex space-x-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-slate-600 font-semibold hover:bg-slate-50 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-                >
-                  {editingItem ? 'Save Changes' : 'Create Item'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
+              <Button type="submit">Save Item</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

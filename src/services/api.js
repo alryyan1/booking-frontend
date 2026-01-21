@@ -68,31 +68,6 @@ export const categoriesAPI = {
   delete: (id) => api.delete(`/categories/${id}`),
 };
 
-// Time Slots API
-export const timeSlotsAPI = {
-  getAll: () => api.get('/time-slots'),
-  getById: (id) => api.get(`/time-slots/${id}`),
-  create: (data) => api.post('/time-slots', data),
-  bulkCreate: (data) => api.post('/time-slots/bulk', data),
-  update: (id, data) => api.put(`/time-slots/${id}`, data),
-  delete: (id) => api.delete(`/time-slots/${id}`),
-};
-
-// Calendar API
-export const calendarAPI = {
-  getWeeks: (month, year) => api.get(`/calendar/weeks/${month}/${year}`),
-};
-
-// Bookings API
-export const bookingsAPI = {
-  getAll: (params) => api.get('/bookings', { params }),
-  getById: (id) => api.get(`/bookings/${id}`),
-  create: (data) => api.post('/bookings', data),
-  update: (id, data) => api.put(`/bookings/${id}`, data),
-  delete: (id) => api.delete(`/bookings/${id}`),
-  export: (params) => api.get('/bookings/export', { params, responseType: 'blob' }),
-};
-
 // Items API
 export const itemsAPI = {
   getAll: (params) => api.get('/items', { params }),
@@ -109,6 +84,34 @@ export const customersAPI = {
   create: (data) => api.post('/customers', data),
   update: (id, data) => api.put(`/customers/${id}`, data),
   delete: (id) => api.delete(`/customers/${id}`),
+};
+
+// Accessories API
+export const accessoriesAPI = {
+  getAll: () => api.get('/accessories'),
+  getById: (id) => api.get(`/accessories/${id}`),
+  create: (data) => api.post('/accessories', data),
+  update: (id, data) => api.put(`/accessories/${id}`, data),
+  delete: (id) => api.delete(`/accessories/${id}`),
+};
+
+// Settings API
+export const settingsAPI = {
+  getAll: () => api.get('/settings'),
+  getByKey: (key) => api.get(`/settings/${key}`),
+  update: (data) => api.post('/settings', data),
+};
+
+// Bookings API
+export const bookingsAPI = {
+  getAll: (params) => api.get('/bookings', { params }),
+  getById: (id) => api.get(`/bookings/${id}`),
+  create: (data) => api.post('/bookings', data),
+  update: (id, data) => api.put(`/bookings/${id}`, data),
+  delete: (id) => api.delete(`/bookings/${id}`),
+  deliver: (id, data) => api.post(`/bookings/${id}/deliver`, data),
+  return: (id) => api.post(`/bookings/${id}/return`),
+  export: (params) => api.get('/bookings/export', { params, responseType: 'blob' }),
 };
 
 // Reports API

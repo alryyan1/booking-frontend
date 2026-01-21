@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { categoriesAPI, calendarAPI } from '../services/api';
+import { categoriesAPI } from '../services/api';
 import { getMonthName } from '../utils/dateHelpers';
+import { Layers, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 const CategorySelection = () => {
   const { monthId } = useParams();
   const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const currentYear = new Date().getFullYear();
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -21,7 +23,6 @@ const CategorySelection = () => {
         setLoading(false);
       }
     };
-
     fetchCategories();
   }, []);
 
@@ -29,46 +30,43 @@ const CategorySelection = () => {
     navigate(`/month/${monthId}/category/${categoryId}`);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading categories...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            {getMonthName(parseInt(monthId))} {currentYear}
-          </h1>
-          <p className="text-gray-600 mt-2">Select a category</p>
+    <div className="container mx-auto py-8 px-4 space-y-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+           <Button variant="ghost" onClick={() => navigate('/month')} className="mb-4 -ml-2 text-muted-foreground">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Month Selection
+           </Button>
+           <h1 className="text-3xl font-bold tracking-tight">Select Classification</h1>
+           <p className="text-muted-foreground mt-1">Filtering inventory sectors for {getMonthName(monthId)}.</p>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {categories.map((category) => (
-            <div
-              key={category.id}
-              onClick={() => handleCategoryClick(category.id)}
-              className="bg-white rounded-lg shadow-md p-8 cursor-pointer hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-indigo-500"
-            >
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-800 mb-2">
-                  {category.name_en}
-                </div>
-                <div className="text-xl text-gray-600" dir="rtl">
-                  {category.name_ar}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {loading ? (
+           [1,2,3].map(i => <div key={i} className="h-32 bg-muted rounded-xl animate-pulse" />)
+        ) : categories.map((category) => (
+          <Card 
+            key={category.id} 
+            className="cursor-pointer hover:border-primary transition-colors group"
+            onClick={() => handleCategoryClick(category.id)}
+          >
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium uppercase tracking-wider">{category.name_en}</CardTitle>
+              <Layers className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{category.name_ar}</div>
+              <p className="text-xs text-muted-foreground mt-1 flex items-center justify-between">
+                <span>Access Tactical Matrix</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );
 };
 
 export default CategorySelection;
-

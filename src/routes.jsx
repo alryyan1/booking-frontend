@@ -17,6 +17,7 @@ const UsersList = lazy(() => import('./pages/UsersList'));
 const ItemsList = lazy(() => import('./pages/ItemsList'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Reports = lazy(() => import('./pages/Reports'));
+const AccessoriesList = lazy(() => import('./pages/AccessoriesList'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-screen">
@@ -28,7 +29,7 @@ const Layout = () => {
   return (
     <div className="flex">
       <Sidebar />
-      <div className="flex-1 ml-64 min-h-screen">
+      <div className="flex-1 ml-64 min-h-screen relative z-0">
         <Suspense fallback={<PageLoader />}>
           <Outlet />
         </Suspense>
@@ -99,6 +100,10 @@ export const router = createBrowserRouter([
           {
             path: '/items',
             element: <ItemsList />,
+          },
+          {
+            path: '/accessories',
+            element: <AccessoriesList />,
           },
           {
             path: '/settings',

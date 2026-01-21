@@ -1,86 +1,54 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { calendarAPI, categoriesAPI } from '../services/api';
-import { getMonthName } from '../utils/dateHelpers';
+import { useNavigate, useParams } from 'react-router-dom';
+import { getMonthName, getMonthWeeks } from '../utils/dateHelpers';
+import { Calendar as CalendarIcon, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 const WeekSelection = () => {
   const { monthId, categoryId } = useParams();
   const navigate = useNavigate();
-  const [weeks, setWeeks] = useState([]);
-  const [category, setCategory] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const currentYear = new Date().getFullYear();
+  const year = new Date().getFullYear();
+  const weeks = getMonthWeeks(year, parseInt(monthId));
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [weeksResponse, categoryResponse] = await Promise.all([
-          calendarAPI.getWeeks(monthId, currentYear),
-          categoriesAPI.getAll(),
-        ]);
-
-        setWeeks(weeksResponse.data.weeks);
-        const foundCategory = categoryResponse.data.find((c) => c.id === parseInt(categoryId));
-        setCategory(foundCategory);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [monthId, categoryId, currentYear]);
-
-  const handleWeekClick = (weekNumber) => {
-    navigate(`/month/${monthId}/category/${categoryId}/week/${weekNumber}`);
+  const handleWeekClick = (week) => {
+    navigate(`/month/${monthId}/category/${categoryId}/week/${week.id}`);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading weeks...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            {getMonthName(parseInt(monthId))} {currentYear}
-          </h1>
-          {category && (
-            <p className="text-xl text-gray-600 mt-2">
-              {category.name_en} ({category.name_ar})
-            </p>
-          )}
-          <p className="text-gray-600 mt-2">Select a week</p>
+    <div className="container mx-auto py-8 px-4 space-y-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+           <Button variant="ghost" onClick={() => navigate(`/month/${monthId}`)} className="mb-4 -ml-2 text-muted-foreground">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Categories
+           </Button>
+           <h1 className="text-3xl font-bold tracking-tight">Select Deployment Week</h1>
+           <p className="text-muted-foreground mt-1">Timeline segments for {getMonthName(monthId)} Logistics.</p>
         </div>
+      </div>
 
-        <div className="flex flex-wrap gap-4">
-          {weeks.map((week) => (
-            <div
-              key={week.week_number}
-              onClick={() => handleWeekClick(week.week_number)}
-              className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-indigo-500 min-w-[200px]"
-            >
-              <div className="text-center">
-                <div className="text-2xl font-bold text-indigo-600 mb-2">
-                  Week {week.week_number}
-                </div>
-                <div className="text-sm text-gray-600">
-                  {week.start_date_formatted} - {week.end_date_formatted}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {weeks.map((week) => (
+          <Card 
+            key={week.id} 
+            className="cursor-pointer hover:border-primary transition-colors group"
+            onClick={() => handleWeekClick(week)}
+          >
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium uppercase tracking-wider">Week {week.id}</CardTitle>
+              <CalendarIcon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{week.label}</div>
+              <p className="text-xs text-muted-foreground mt-1 flex items-center justify-between">
+                <span>Access Operational Grid</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );
 };
 
 export default WeekSelection;
-
