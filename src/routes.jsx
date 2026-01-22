@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
-import Sidebar from './components/Sidebar';
 
 // Lazy load pages
 const Login = lazy(() => import('./pages/Login'));
@@ -24,18 +23,7 @@ const PageLoader = () => (
   </div>
 );
 
-const Layout = () => {
-  return (
-    <div className="flex">
-      <Sidebar />
-      <div className="flex-1 ml-64 min-h-screen">
-        <Suspense fallback={<PageLoader />}>
-          <Outlet />
-        </Suspense>
-      </div>
-    </div>
-  );
-};
+import Layout from './components/Layout';
 
 export const router = createBrowserRouter([
   {

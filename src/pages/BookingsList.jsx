@@ -1,7 +1,37 @@
 import { useState, useEffect } from 'react';
-import { bookingsAPI, categoriesAPI, timeSlotsAPI } from '../services/api';
-import { Plus, Calendar, FileText, Search, Filter, ArrowUpDown } from 'lucide-react';
+import { bookingsAPI } from '../services/api';
 import BookingForm from '../components/BookingForm';
+import {
+  Box,
+  Typography,
+  Button,
+  TextField,
+  InputAdornment,
+  FormControl,
+  Select,
+  MenuItem,
+  Card,
+  CardContent,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Chip,
+  IconButton,
+  Tooltip,
+  CircularProgress
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon, // Added missing icon
+  Event as EventIcon
+} from '@mui/icons-material';
 
 const BookingsList = () => {
   const [bookings, setBookings] = useState([]);
@@ -23,7 +53,6 @@ const BookingsList = () => {
         params.payment_status = filterStatus;
       }
       const response = await bookingsAPI.getAll(params);
-      // Backend returns paginated data
       setBookings(response.data.data || response.data || []);
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -72,140 +101,188 @@ const BookingsList = () => {
   });
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto min-h-screen bg-slate-50/30">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-        <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Booking Explorer</h1>
-          <p className="text-slate-500 mt-2 text-lg font-medium">Manage rentals, deposits, and returns in real-time</p>
-        </div>
-        <button
+    <Box sx={{ width: '100%' }}>
+      {/* Header */}
+      <Box sx={{ mb: 4, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+        <Box>
+          <Typography variant="h4" fontWeight="bold" gutterBottom>
+            Booking Explorer
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Manage your bookings, deposits, and returns
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          size="large"
+          startIcon={<AddIcon />}
           onClick={() => {
             setSelectedBooking(null);
             setShowForm(true);
           }}
-          className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center gap-2 group"
+          sx={{ fontWeight: 'bold', padding: '10px 24px', borderRadius: 3 }}
         >
-          <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" /> New Booking
-        </button>
-      </div>
+          New Booking
+        </Button>
+      </Box>
 
-      <div className="flex flex-col md:flex-row gap-6 mb-8">
-        <div className="flex-1 relative group">
-          <Search className="w-5 h-5 absolute left-4 top-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-          <input
-            type="text"
-            placeholder="Search invoice, phone, or dress name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm font-medium"
-          />
-        </div>
-        <div className="w-full md:w-64 relative group">
-          <Filter className="w-5 h-5 absolute left-4 top-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-          <select
+      {/* Filters */}
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 4 }}>
+        <TextField
+          placeholder="Search invoice, phone, or items..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          fullWidth
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ bgcolor: 'white', borderRadius: 1 }}
+        />
+        
+        <FormControl sx={{ minWidth: 200, bgcolor: 'white', borderRadius: 1 }}>
+          <Select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="w-full pl-12 pr-10 py-4 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-bold transition-all shadow-sm appearance-none cursor-pointer"
+            displayEmpty
+            inputProps={{ 'aria-label': 'Filter Status' }}
+            startAdornment={
+               <InputAdornment position="start">
+                 <FilterListIcon color="action" />
+               </InputAdornment>
+            }
           >
-            <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="partial">Partial</option>
-            <option value="paid">Paid</option>
-          </select>
-        </div>
-      </div>
+            <MenuItem value="all">All Statuses</MenuItem>
+            <MenuItem value="pending">Pending</MenuItem>
+            <MenuItem value="partial">Partial</MenuItem>
+            <MenuItem value="paid">Paid</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
 
-      <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-100">
-                <th className="px-8 py-6 text-xs font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Invoice / Date</th>
-                <th className="px-8 py-6 text-xs font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Customer</th>
-                <th className="px-8 py-6 text-xs font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Items (Inventory)</th>
-                <th className="px-8 py-6 text-xs font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Return Date</th>
-                <th className="px-8 py-6 text-xs font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Total</th>
-                <th className="px-8 py-6 text-xs font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Deposit</th>
-                <th className="px-8 py-6 text-xs font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Balance</th>
-                <th className="px-8 py-6 text-xs font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Status</th>
-                <th className="px-8 py-6 text-xs font-bold text-slate-400 uppercase tracking-widest text-right whitespace-nowrap">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr><td colSpan="9" className="px-8 py-20 text-center text-slate-400 italic font-medium">Finding bookings...</td></tr>
-              ) : filteredBookings.length === 0 ? (
-                <tr><td colSpan="9" className="px-8 py-20 text-center text-slate-400 italic font-medium">No bookings found matching your criteria</td></tr>
-              ) : (
-                filteredBookings.map((booking) => (
-                  <tr key={booking.id} className="hover:bg-indigo-50/30 transition-all group">
-                    <td className="px-8 py-6">
-                      <div className="font-black text-slate-900 leading-none">{booking.invoice_number}</div>
-                      <div className="text-xs font-bold text-slate-400 mt-2 uppercase tracking-tighter">
-                        {new Date(booking.booking_date).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="font-bold text-slate-900 uppercase">{booking.customer?.name || 'Walk-in'}</div>
-                      <div className="text-xs text-slate-400 font-medium">{booking.customer?.phone_number || booking.phone_number}</div>
-                    </td>
-                    <td className="px-8 py-6 max-w-xs">
-                      <div className="flex flex-wrap gap-1.5">
-                        {booking.items?.map(item => (
-                          <span key={item.id} className="px-3 py-1 bg-white border border-slate-200 text-slate-700 rounded-lg text-[10px] font-black uppercase tracking-tight shadow-sm">
-                            {item.name}
-                          </span>
-                        ))}
-                        {!booking.items?.length && <span className="text-slate-300 italic text-sm">No items</span>}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      {booking.return_date ? (
-                        <div className="flex items-center gap-2 text-indigo-600 font-bold whitespace-nowrap">
-                          <Calendar className="w-4 h-4" />
-                          {new Date(booking.return_date).toLocaleDateString()}
-                        </div>
-                      ) : <span className="text-slate-300 font-medium">Not set</span>}
-                    </td>
-                    <td className="px-8 py-6 text-center font-bold text-slate-700 whitespace-nowrap">
-                      ${parseFloat(booking.total_amount).toFixed(2)}
-                    </td>
-                    <td className="px-8 py-6 text-center font-bold text-slate-500 whitespace-nowrap">
-                      ${parseFloat(booking.deposit_amount).toFixed(2)}
-                    </td>
-                    <td className="px-8 py-6 text-center whitespace-nowrap">
-                      <span className="text-lg font-black text-emerald-600">
-                        ${parseFloat(booking.remaining_balance).toFixed(2)}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6 whitespace-nowrap">
-                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                        booking.payment_status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
-                        booking.payment_status === 'partial' ? 'bg-amber-100 text-amber-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {booking.payment_status}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <button
-                        onClick={() => {
-                          setSelectedBooking(booking);
-                          setShowForm(true);
-                        }}
-                        className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow group-hover:bg-white"
-                      >
-                        <FileText className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Table */}
+      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <CardContent sx={{ p: 0 }}>
+          <TableContainer>
+            <Table>
+              <TableHead sx={{ bgcolor: 'grey.50' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>Invoice / Date</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Customer</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Items</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Return Date</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>Total</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>Deposit</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>Balance</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>Action</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                     <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
+                       <CircularProgress />
+                     </TableCell>
+                  </TableRow>
+                ) : filteredBookings.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
+                      <Typography color="text.secondary">No bookings found</Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredBookings.map((booking) => (
+                    <TableRow key={booking.id} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="bold">{booking.invoice_number}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(booking.booking_date).toLocaleDateString()}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="600" textTransform="capitalize">
+                            {booking.customer?.name || 'Walk-in'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            {booking.customer?.phone_number || booking.phone_number}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: 200 }}>
+                          {booking.items?.length > 0 ? (
+                            booking.items.map((item) => (
+                              <Chip 
+                                key={item.id} 
+                                label={item.name} 
+                                size="small" 
+                                variant="outlined" 
+                                sx={{ borderRadius: 1, fontWeight: 500, fontSize: '0.7rem' }} 
+                              />
+                            ))
+                          ) : (
+                            <Typography variant="caption" fontStyle="italic" color="text.secondary">No items</Typography>
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        {booking.return_date ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'primary.main', fontWeight: 500 }}>
+                                <EventIcon fontSize="small" />
+                                <Typography variant="body2">{new Date(booking.return_date).toLocaleDateString()}</Typography>
+                            </Box>
+                        ) : (
+                            <Typography variant="caption" color="text.secondary">Not set</Typography>
+                        )}
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600 }}>
+                        ${Number(booking.total_amount).toFixed(2)}
+                      </TableCell>
+                      <TableCell align="center" sx={{ color: 'text.secondary' }}>
+                        ${Number(booking.deposit_amount).toFixed(2)}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Typography fontWeight="bold" color={Number(booking.remaining_balance) > 0 ? 'error.main' : 'success.main'}>
+                            ${Number(booking.remaining_balance).toFixed(2)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={booking.payment_status}
+                          size="small"
+                          color={
+                            booking.payment_status === 'paid' ? 'success' :
+                            booking.payment_status === 'partial' ? 'warning' : 'error'
+                          }
+                          sx={{ textTransform: 'capitalize', fontWeight: 600 }}
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Tooltip title="Edit Booking">
+                          <IconButton
+                            color="primary"
+                            onClick={() => {
+                              setSelectedBooking(booking);
+                              setShowForm(true);
+                            }}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
 
+      {/* Booking Form Modal/Overlay handled by component */}
       {showForm && (
         <BookingForm
           booking={selectedBooking}
@@ -217,7 +294,7 @@ const BookingsList = () => {
           }}
         />
       )}
-    </div>
+    </Box>
   );
 };
 
