@@ -1,16 +1,48 @@
 import { useState, useEffect } from 'react';
-import { itemsAPI, categoriesAPI } from '../services/api';
+import { itemsAPI } from '../services/api';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+  Avatar,
+  Chip,
+  Stack,
+  InputAdornment,
+  Divider
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Inventory as InventoryIcon,
+  AttachMoney as MoneyIcon,
+  Close as CloseIcon,
+  Save as SaveIcon
+} from '@mui/icons-material';
 
 const ItemsList = () => {
   const [items, setItems] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     price: '',
-    category_id: '',
     description: '',
   });
 
@@ -20,12 +52,8 @@ const ItemsList = () => {
 
   const fetchData = async () => {
     try {
-      const [itemsRes, categoriesRes] = await Promise.all([
-        itemsAPI.getAll(),
-        categoriesAPI.getAll(),
-      ]);
+      const itemsRes = await itemsAPI.getAll();
       setItems(itemsRes.data);
-      setCategories(categoriesRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -39,7 +67,6 @@ const ItemsList = () => {
       setFormData({
         name: item.name,
         price: item.price,
-        category_id: item.category_id,
         description: item.description || '',
       });
     } else {
@@ -47,7 +74,6 @@ const ItemsList = () => {
       setFormData({
         name: '',
         price: '',
-        category_id: '',
         description: '',
       });
     }
@@ -80,140 +106,245 @@ const ItemsList = () => {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-lg">Loading inventory...</div>;
+  if (loading) {
+    return (
+      <Box sx={{ p: 8, textAlign: 'center' }}>
+        <Typography variant="h6" color="text.secondary">Loading inventory...</Typography>
+      </Box>
+    );
+  }
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Inventory Management</h1>
-          <p className="text-slate-500 mt-1">Manage your dresses and pricing</p>
-        </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+    <>
+      <Box sx={{ p: 4 }}>
+        {/* Header */}
+        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="h4" fontWeight="800" color="text.primary">
+              Inventory Management
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Manage your items and pricing
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenModal()}
+            sx={{ 
+              borderRadius: 3, 
+              px: 4,
+              fontWeight: 700,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              textTransform: 'none'
+            }}
+          >
+            Add New Item
+          </Button>
+        </Box>
+
+        {/* Table Card */}
+        <Card 
+          variant="outlined" 
+          sx={{ 
+            borderRadius: 3, 
+            overflow: 'hidden',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+            border: '1px solid rgba(0,0,0,0.08)'
+          }}
         >
-          + Add New Item
-        </button>
-      </div>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                  <TableCell sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: 1 }}>
+                    Item Name
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: 1 }}>
+                    Price
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: 1 }}>
+                    Description
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: 1 }}>
+                    Actions
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {items.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 8 }}>
+                      <InventoryIcon sx={{ fontSize: 48, color: 'action.disabled', mb: 2 }} />
+                      <Typography variant="body2" color="text.secondary">
+                        No items in inventory yet
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  items.map((item) => (
+                    <TableRow 
+                      key={item.id} 
+                      hover
+                      sx={{ 
+                        '&:hover': { bgcolor: 'action.hover' },
+                        transition: 'background-color 0.2s'
+                      }}
+                    >
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="600">
+                          {item.name}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Chip 
+                          label={`$${parseFloat(item.price).toFixed(2)}`} 
+                          size="small" 
+                          color="primary"
+                          sx={{ fontWeight: 700 }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {item.description || '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenModal(item)}
+                            sx={{ 
+                              color: 'primary.main',
+                              '&:hover': { bgcolor: 'primary.lighter' }
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDelete(item.id)}
+                            sx={{ 
+                              color: 'error.main',
+                              '&:hover': { bgcolor: 'error.lighter' }
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Card>
+      </Box>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 border-b border-slate-100">
-            <tr>
-              <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Category</th>
-              <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Price</th>
-              <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</th>
-              <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {items.map((item) => (
-              <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-6 py-4 font-medium text-slate-900">{item.name}</td>
-                <td className="px-6 py-4 text-slate-600">
-                  <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-sm">
-                    {item.category?.name_en || 'N/A'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 font-semibold text-indigo-600">${item.price}</td>
-                <td className="px-6 py-4 text-slate-500 text-sm">{item.description || '-'}</td>
-                <td className="px-6 py-4 text-right space-x-3">
-                  <button
-                    onClick={() => handleOpenModal(item)}
-                    className="text-slate-400 hover:text-indigo-600 transition-colors font-medium text-sm"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="text-slate-400 hover:text-red-600 transition-colors font-medium text-sm"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {showModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100">
-              <h2 className="text-xl font-bold text-slate-900">
+      {/* Add/Edit Dialog */}
+      <Dialog
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            boxShadow: '0 24px 48px rgba(0, 0, 0, 0.16)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: '2px solid', 
+          borderColor: 'divider',
+          px: 4,
+          py: 3,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'linear-gradient(to bottom, rgba(255,255,255,1), rgba(250,250,250,1))'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar variant="rounded" sx={{ bgcolor: editingItem ? 'warning.main' : 'primary.main', width: 40, height: 40 }}>
+              {editingItem ? <EditIcon /> : <AddIcon />}
+            </Avatar>
+            <Box>
+              <Typography variant="h6" fontWeight="800" sx={{ lineHeight: 1.2 }}>
                 {editingItem ? 'Edit Item' : 'Add New Item'}
-              </h2>
-            </div>
-            <form onSubmit={handleSubmit} className="p-8 space-y-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Item Name</label>
-                <input
-                  type="text"
-                  required
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Category</label>
-                  <select
-                    required
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                    value={formData.category_id}
-                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name_en}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Price</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Description</label>
-                <textarea
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                  rows="3"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
-              <div className="flex space-x-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-slate-600 font-semibold hover:bg-slate-50 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-                >
-                  {editingItem ? 'Save Changes' : 'Create Item'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {editingItem ? 'Update item details' : 'Create a new inventory item'}
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton onClick={() => setShowModal(false)} size="small" sx={{ bgcolor: 'action.hover' }}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <form onSubmit={handleSubmit}>
+          <DialogContent sx={{ p: 4 }}>
+            <Stack spacing={3}>
+              <TextField
+                label="Item Name"
+                required
+                fullWidth
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="E.g., Evening Gown"
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><InventoryIcon fontSize="small" /></InputAdornment>
+                }}
+              />
+
+              <TextField
+                label="Price"
+                type="number"
+                step="0.01"
+                required
+                fullWidth
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                placeholder="0.00"
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><MoneyIcon fontSize="small" /></InputAdornment>
+                }}
+              />
+
+              <TextField
+                label="Description"
+                multiline
+                rows={3}
+                fullWidth
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Optional item description..."
+              />
+            </Stack>
+          </DialogContent>
+
+          <DialogActions sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider', gap: 2 }}>
+            <Button
+              onClick={() => setShowModal(false)}
+              color="inherit"
+              sx={{ borderRadius: 2, px: 3 }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              startIcon={<SaveIcon />}
+              sx={{ borderRadius: 2, px: 4, fontWeight: 700 }}
+            >
+              {editingItem ? 'Update Item' : 'Create Item'}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+    </>
   );
 };
 

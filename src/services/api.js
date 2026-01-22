@@ -59,24 +59,9 @@ export const usersAPI = {
   delete: (id) => api.delete(`/users/${id}`),
 };
 
-// Categories API
-export const categoriesAPI = {
-  getAll: () => api.get('/categories'),
-  getById: (id) => api.get(`/categories/${id}`),
-  create: (data) => api.post('/categories', data),
-  update: (id, data) => api.put(`/categories/${id}`, data),
-  delete: (id) => api.delete(`/categories/${id}`),
-};
 
-// Time Slots API
-export const timeSlotsAPI = {
-  getAll: () => api.get('/time-slots'),
-  getById: (id) => api.get(`/time-slots/${id}`),
-  create: (data) => api.post('/time-slots', data),
-  bulkCreate: (data) => api.post('/time-slots/bulk', data),
-  update: (id, data) => api.put(`/time-slots/${id}`, data),
-  delete: (id) => api.delete(`/time-slots/${id}`),
-};
+
+
 
 // Calendar API
 export const calendarAPI = {

@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { itemsAPI, categoriesAPI, timeSlotsAPI, customersAPI } from '../services/api';
+import { itemsAPI, customersAPI } from '../services/api';
 import QuickAddCustomer from './QuickAddCustomer';
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Grid,
   TextField,
   Button,
   IconButton,
@@ -27,25 +26,35 @@ import {
   Chip,
   InputAdornment,
   Divider,
-  Alert
+  Alert,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  useTheme
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Person as PersonIcon,
-  Phone as PhoneIcon,
   Save as SaveIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
   CheckCircle as CheckCircleIcon,
-  AttachMoney as AttachMoneyIcon,
-  DateRange as DateRangeIcon,
-  AccessTime as AccessTimeIcon,
-  Category as CategoryIcon,
-  Note as NoteIcon,
-  ShoppingBag as ShoppingBagIcon
+  ShoppingBag as ShoppingBagIcon,
+  ReceiptLong as ReceiptIcon,
+  CalendarMonth as CalendarIcon,
+  LocalOffer as TagIcon,
+  Notes as NotesIcon,
+  AccessTime as AccessTimeIcon
 } from '@mui/icons-material';
 
-const BookingForm = ({ booking, onSave, onCancel, onDelete, bookingDate, timeSlotId, categoryId }) => {
+const BookingForm = ({ booking, onSave, onCancel, onDelete, bookingDate }) => {
+  const theme = useTheme();
+  
   const [formData, setFormData] = useState({
     invoice_number: '',
     customer_id: '',
@@ -56,15 +65,10 @@ const BookingForm = ({ booking, onSave, onCancel, onDelete, bookingDate, timeSlo
     deposit_amount: 0,
     total_amount: 0,
     remaining_balance: 0,
-    category_id: categoryId || '',
-    booking_date: bookingDate || '',
-    return_date: '',
-    time_slot_id: timeSlotId || '',
+    event_date: bookingDate || '',
     items: [],
   });
 
-  const [categories, setCategories] = useState([]);
-  const [timeSlots, setTimeSlots] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -76,14 +80,10 @@ const BookingForm = ({ booking, onSave, onCancel, onDelete, bookingDate, timeSlo
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [categoriesRes, timeSlotsRes, itemsRes, customersRes] = await Promise.all([
-          categoriesAPI.getAll(),
-          timeSlotsAPI.getAll(),
+        const [itemsRes, customersRes] = await Promise.all([
           itemsAPI.getAll(),
           customersAPI.getAll(),
         ]);
-        setCategories(categoriesRes.data);
-        setTimeSlots(timeSlotsRes.data);
         setInventory(itemsRes.data);
         setCustomers(customersRes.data);
       } catch (error) {
@@ -106,37 +106,46 @@ const BookingForm = ({ booking, onSave, onCancel, onDelete, bookingDate, timeSlo
         deposit_amount: parseFloat(booking.deposit_amount) || 0,
         total_amount: parseFloat(booking.total_amount) || 0,
         remaining_balance: parseFloat(booking.remaining_balance) || 0,
-        category_id: booking.category_id || '',
-        booking_date: booking.booking_date || bookingDate || '',
-        return_date: booking.return_date || '',
-        time_slot_id: booking.time_slot_id || timeSlotId || '',
+        event_date: booking.event_date || booking.booking_date || bookingDate || '',
         items: booking.items?.map(item => ({
           id: item.id,
           name: item.name,
-          price: parseFloat(item.pivot?.price_at_booking || item.price)
+          price: parseFloat(item.pivot?.price_at_booking || item.price),
+          quantity: parseInt(item.pivot?.quantity || 1)
         })) || [],
       });
       if (booking.customer) {
         setSelectedCustomer(booking.customer);
       }
     }
-  }, [booking, bookingDate, timeSlotId, categoryId]);
+  }, [booking, bookingDate]);
 
   useEffect(() => {
-    const total = formData.items.reduce((sum, item) => sum + item.price, 0);
-    const balance = total - formData.deposit_amount;
-    setFormData(prev => ({
-      ...prev,
-      total_amount: total,
-      remaining_balance: balance
-    }));
-  }, [formData.items, formData.deposit_amount]);
+    // Auto-calculate balance and payment status whenever total or deposit changes
+    const total = parseFloat(formData.total_amount) || 0;
+    const deposit = parseFloat(formData.deposit_amount) || 0;
+    const balance = total - deposit;
+
+    let status = 'pending';
+    if (balance <= 0 && total > 0) status = 'paid';
+    else if (deposit > 0) status = 'partial';
+
+    setFormData(prev => {
+        // Prevent infinite loop if nothing changed
+        if (prev.remaining_balance === balance && prev.payment_status === status) return prev;
+        return {
+            ...prev,
+            remaining_balance: balance,
+            payment_status: status
+        };
+    });
+  }, [formData.total_amount, formData.deposit_amount]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'deposit_amount' ? parseFloat(value) || 0 : value,
+      [name]: (name === 'deposit_amount' || name === 'total_amount') ? parseFloat(value) || 0 : value,
     }));
   };
 
@@ -166,19 +175,65 @@ const BookingForm = ({ booking, onSave, onCancel, onDelete, bookingDate, timeSlo
 
   const handleItemSelect = (event, newValue) => {
     if (newValue) {
-        if (formData.items.some(i => i.id === newValue.id)) return;
-        setFormData(prev => ({
-            ...prev,
-            items: [...prev.items, { id: newValue.id, name: newValue.name, price: parseFloat(newValue.price) }]
-        }));
+        // Check if item already exists
+        const existingItemIndex = formData.items.findIndex(i => i.id === newValue.id);
+        
+        if (existingItemIndex !== -1) {
+            // Increase quantity if item already exists
+            setFormData(prev => ({
+                ...prev,
+                items: prev.items.map((item, idx) => 
+                    idx === existingItemIndex 
+                        ? { ...item, quantity: item.quantity + 1 }
+                        : item
+                ),
+                total_amount: (parseFloat(prev.total_amount) || 0) + parseFloat(newValue.price)
+            }));
+        } else {
+            // Add new item with quantity 1
+            setFormData(prev => ({
+                ...prev,
+                items: [...prev.items, { 
+                    id: newValue.id, 
+                    name: newValue.name, 
+                    price: parseFloat(newValue.price),
+                    quantity: 1
+                }],
+                total_amount: (parseFloat(prev.total_amount) || 0) + parseFloat(newValue.price)
+            }));
+        }
     }
   };
 
   const removeItemFromBooking = (id) => {
+    const item = formData.items.find(i => i.id === id);
+    if (!item) return;
+    
     setFormData(prev => ({
       ...prev,
-      items: prev.items.filter(i => i.id !== id)
+      items: prev.items.filter(i => i.id !== id),
+      total_amount: Math.max(0, (parseFloat(prev.total_amount) || 0) - (item.price * item.quantity))
     }));
+  };
+
+  const updateItemQuantity = (id, change) => {
+    setFormData(prev => {
+      const item = prev.items.find(i => i.id === id);
+      if (!item) return prev;
+      
+      const newQuantity = item.quantity + change;
+      if (newQuantity < 1) return prev;
+      
+      const priceDiff = item.price * change;
+      
+      return {
+        ...prev,
+        items: prev.items.map(i => 
+          i.id === id ? { ...i, quantity: newQuantity } : i
+        ),
+        total_amount: Math.max(0, (parseFloat(prev.total_amount) || 0) + priceDiff)
+      };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -191,376 +246,397 @@ const BookingForm = ({ booking, onSave, onCancel, onDelete, bookingDate, timeSlo
     }
   };
 
-  const formatTime = (time) => {
-    if (!time) return '';
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
-  };
-
   return (
     <>
       <Dialog 
         open={true} 
         onClose={onCancel} 
-        maxWidth="lg" 
+        maxWidth="xl" 
         fullWidth
         PaperProps={{
-            sx: { borderRadius: 3 }
+            sx: { 
+                borderRadius: 4, 
+                bgcolor: 'background.default',
+                height: '90vh',
+                boxShadow: '0 24px 48px rgba(0, 0, 0, 0.16)'
+            }
         }}
       >
-        <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <DialogTitle sx={{ 
+            borderBottom: '2px solid', 
+            borderColor: 'divider', 
+            px: 4, 
+            py: 3, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            bgcolor: 'background.paper',
+            background: 'linear-gradient(to bottom, rgba(255,255,255,1), rgba(250,250,250,1))'
+        }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-             <Avatar sx={{ bgcolor: booking ? 'warning.light' : 'primary.light', colro: booking ? 'warning.dark' : 'primary.dark' }}>
-               {booking ? <NoteIcon /> : <AddIcon />}
+             <Avatar variant="rounded" sx={{ bgcolor: booking ? 'warning.main' : 'primary.main', width: 40, height: 40 }}>
+               {booking ? <NotesIcon /> : <ReceiptIcon />}
              </Avatar>
-             <Typography variant="h6" fontWeight="bold">
-               {booking ? 'Modify Booking' : 'New Attire Booking'}
-             </Typography>
+             <Box>
+                 <Typography variant="h6" fontWeight="800" sx={{ lineHeight: 1.2 }}>
+                   {booking ? 'Modify Booking' : 'New Reservation'}
+                 </Typography>
+                 <Typography variant="caption" color="text.secondary">
+                    {booking ? `Editing record #${booking.id}` : 'Create a new client invoice'}
+                 </Typography>
+             </Box>
           </Box>
-          <IconButton onClick={onCancel} size="small">
-            <CloseIcon />
-          </IconButton>
+          <Box sx={{ display: 'flex', gap: 1 }}> 
+            {booking && onDelete && (
+                <Button 
+                    onClick={onDelete} 
+                    color="error"
+                    size="small" 
+                    startIcon={<DeleteIcon />}
+                    sx={{ borderRadius: 2 }}
+                >
+                    Delete
+                </Button>
+            )}
+            <IconButton onClick={onCancel} size="small" sx={{ bgcolor: 'action.hover' }}>
+                <CloseIcon />
+            </IconButton>
+          </Box>
         </DialogTitle>
 
-        <DialogContent sx={{ p: 4 }}>
-          <form id="booking-form" onSubmit={handleSubmit}>
-             <Grid container spacing={4}>
-                
-                {/* SECTION 1: Client & Invoice */}
-                <Grid item xs={12}>
-                   <Typography variant="overline" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 1.2 }}>
-                      Client & Identity
-                   </Typography>
-                   <Divider sx={{ mb: 2 }} />
-                   <Grid container spacing={3}>
-                      <Grid item xs={12} sm={4}>
-                         <TextField
-                            label="Invoice ID"
-                            name="invoice_number"
-                            value={formData.invoice_number}
-                            onChange={handleChange}
-                            required
-                            fullWidth
-                            placeholder="E.g. INV-2024-001"
-                            InputProps={{
-                                startAdornment: <InputAdornment position="start">#</InputAdornment>
-                            }}
-                         />
-                      </Grid>
-                      <Grid item xs={12} sm={8}>
-                         <Box sx={{ display: 'flex', gap: 1 }}>
+        <DialogContent sx={{ p: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, overflow: 'hidden' }}>
+           
+           {/* LEFT PANEL: Form Inputs */}
+           <Box sx={{ flex: 7, p: 4, overflowY: 'auto', bgcolor: 'background.paper' }}>
+              <form id="booking-form" onSubmit={handleSubmit}>
+                 <Stack spacing={4}>
+                    
+                    {/* Client Information */}
+                    <Card variant="outlined" sx={{ borderRadius: 3, overflow: 'visible', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)' }}>
+                        <Box sx={{ 
+                            p: 2.5, 
+                            borderBottom: '1px solid', 
+                            borderColor: 'divider', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1.5,
+                            bgcolor: 'grey.50'
+                        }}>
+                            <PersonIcon color="primary" fontSize="small" />
+                            <Typography variant="subtitle2" fontWeight="700">Client Details</Typography>
+                        </Box>
+                        <CardContent sx={{ p: 3 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
+                                    <Box sx={{ flex: { xs: '1', sm: '0 0 33%' } }}>
+                                        <TextField
+                                            label="Invoice Number"
+                                            name="invoice_number"
+                                            value={formData.invoice_number}
+                                            onChange={handleChange}
+                                            fullWidth
+                                            size="small"
+                                            required
+                                            placeholder="e.g., INV-001"
+                                            InputProps={{
+                                                startAdornment: <InputAdornment position="start">#</InputAdornment>,
+                                                sx: { fontWeight: 'bold' }
+                                            }}
+                                        />
+                                    </Box>
+                                    <Box sx={{ flex: 1, display: 'flex', gap: 1 }}>
+                                        <Autocomplete
+                                            options={customers}
+                                            getOptionLabel={(option) => option.name || ''}
+                                            value={selectedCustomer}
+                                            onChange={handleCustomerSelect}
+                                            fullWidth
+                                            size="small"
+                                            renderInput={(params) => (
+                                                <TextField 
+                                                    {...params} 
+                                                    label="Select Customer" 
+                                                    placeholder="Search by name or phone..."
+                                                />
+                                            )}
+                                            renderOption={(props, option) => (
+                                                <li {...props} key={option.id}>
+                                                    <Box>
+                                                        <Typography variant="body2" fontWeight="600">{option.name}</Typography>
+                                                        <Typography variant="caption" color="text.secondary">{option.phone_number}</Typography>
+                                                    </Box>
+                                                </li>
+                                            )}
+                                        />
+                                        <Button 
+                                            variant="outlined" 
+                                            sx={{ minWidth: '40px', px: 0, borderRadius: 2 }}
+                                            onClick={() => setShowQuickAddModal(true)}
+                                        >
+                                            <AddIcon fontSize="small" />
+                                        </Button>
+                                    </Box>
+                                </Box>
+                                <TextField
+                                    type="date"
+                                    label="Event / Booking Date"
+                                    name="event_date"
+                                    value={formData.event_date}
+                                    onChange={handleChange}
+                                    fullWidth
+                                    size="small"
+                                    InputLabelProps={{ shrink: true }}
+                                    InputProps={{
+                                        startAdornment: <InputAdornment position="start"><CalendarIcon fontSize="small" /></InputAdornment>
+                                    }}
+                                />
+                            </Box>
+                        </CardContent>
+                    </Card>
+
+                    {/* Inventory Selection */}
+                    <Card variant="outlined" sx={{ borderRadius: 3, overflow: 'visible', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)' }}>
+                        <Box sx={{ 
+                            p: 2.5, 
+                            borderBottom: '1px solid', 
+                            borderColor: 'divider', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1.5,
+                            bgcolor: 'grey.50'
+                        }}>
+                            <ShoppingBagIcon color="secondary" fontSize="small" />
+                            <Typography variant="subtitle2" fontWeight="700">Attire & Items</Typography>
+                        </Box>
+                        <CardContent sx={{ p: 3 }}>
                             <Autocomplete
-                                options={customers}
-                                getOptionLabel={(option) => option.name || ''}
-                                value={selectedCustomer}
-                                onChange={handleCustomerSelect}
-                                fullWidth
+                                options={inventory}
+                                getOptionLabel={(option) => `${option.name} ($${option.price})` || ''}
+                                onChange={handleItemSelect}
                                 renderInput={(params) => (
                                     <TextField 
                                         {...params} 
-                                        label="Customer Name" 
-                                        required={!formData.customer_id}
-                                        placeholder="Search registered clients..."
+                                        label="Search Inventory" 
+                                        placeholder="Start typing to add items..."
+                                        fullWidth
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            startAdornment: (
+                                                <>
+                                                    <InputAdornment position="start"><TagIcon color="action" /></InputAdornment>
+                                                    {params.InputProps.startAdornment}
+                                                </>
+                                            )
+                                        }}
                                     />
                                 )}
                                 renderOption={(props, option) => (
                                     <li {...props} key={option.id}>
-                                        <Box>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                                             <Typography variant="body2" fontWeight="600">{option.name}</Typography>
-                                            <Typography variant="caption" color="text.secondary">{option.phone_number}</Typography>
+                                            <Chip label={`$${option.price}`} size="small" color="primary" variant="outlined" />
                                         </Box>
                                     </li>
                                 )}
                             />
-                            <Button 
-                                variant="outlined" 
-                                sx={{ minWidth: '48px', px: 0 }}
-                                onClick={() => setShowQuickAddModal(true)}
-                            >
-                                <PersonIcon fontSize="small" /> <AddIcon fontSize="small" />
-                            </Button>
-                         </Box>
-                      </Grid>
-                   </Grid>
-                </Grid>
 
-                {/* SECTION 2: Logistics */}
-                <Grid item xs={12}>
-                   <Typography variant="overline" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 1.2 }}>
-                      Schedule & Logistics
-                   </Typography>
-                   <Divider sx={{ mb: 2 }} />
-                   <Grid container spacing={3}>
-                      <Grid item xs={12} sm={6} md={3}>
-                           <FormControl fullWidth required>
-                              <InputLabel>Category</InputLabel>
-                              <Select
-                                 name="category_id"
-                                 value={formData.category_id}
-                                 onChange={handleChange}
-                                 label="Category"
-                              >
-                                {categories.map((cat) => (
-                                    <MenuItem key={cat.id} value={cat.id}>{cat.name_en}</MenuItem>
-                                ))}
-                              </Select>
-                           </FormControl>
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={3}>
-                           <TextField
-                                type="date"
-                                label="Booking Date"
-                                name="booking_date"
-                                value={formData.booking_date}
-                                onChange={handleChange}
-                                required
-                                fullWidth
-                                InputLabelProps={{ shrink: true }}
-                           />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={3}>
-                           <FormControl fullWidth required>
-                              <InputLabel>Pick-up Slot</InputLabel>
-                              <Select
-                                 name="time_slot_id"
-                                 value={formData.time_slot_id}
-                                 onChange={handleChange}
-                                 label="Pick-up Slot"
-                              >
-                                {timeSlots.map((slot) => (
-                                    <MenuItem key={slot.id} value={slot.id}>
-                                       {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
-                                    </MenuItem>
-                                ))}
-                              </Select>
-                           </FormControl>
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={3}>
-                           <TextField
-                                type="date"
-                                label="Return Deadline"
-                                name="return_date"
-                                value={formData.return_date}
-                                onChange={handleChange}
-                                required
-                                fullWidth
-                                InputLabelProps={{ shrink: true }}
-                                sx={{ 
-                                    '& .MuiOutlinedInput-root': { color: 'primary.main', fontWeight: 600 },
-                                    '& .MuiInputLabel-root': { color: 'primary.main' }
-                                }}
-                           />
-                      </Grid>
-                   </Grid>
-                </Grid>
+                            <TableContainer component={Paper} variant="outlined" sx={{ mt: 3, borderRadius: 2, maxHeight: 300 }}>
+                                <Table size="small" stickyHeader>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Item Name</TableCell>
+                                            <TableCell align="center">Quantity</TableCell>
+                                            <TableCell align="right">Price</TableCell>
+                                            <TableCell align="right">Subtotal</TableCell>
+                                            <TableCell align="right" width={50}></TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {formData.items.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                                                    <Typography variant="body2">No items selected yet.</Typography>
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            formData.items.map((item) => (
+                                                <TableRow key={item.id} hover>
+                                                    <TableCell sx={{ fontWeight: 600 }}>{item.name}</TableCell>
+                                                    <TableCell align="center">
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => updateItemQuantity(item.id, -1)}
+                                                                disabled={item.quantity <= 1}
+                                                                sx={{ bgcolor: 'action.hover' }}
+                                                            >
+                                                                <DeleteIcon fontSize="small" />
+                                                            </IconButton>
+                                                            <Typography variant="body2" fontWeight="700" sx={{ minWidth: '30px', textAlign: 'center' }}>
+                                                                {item.quantity}
+                                                            </Typography>
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => updateItemQuantity(item.id, 1)}
+                                                                sx={{ bgcolor: 'action.hover' }}
+                                                            >
+                                                                <AddIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Box>
+                                                    </TableCell>
+                                                    <TableCell align="right">${item.price.toFixed(2)}</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                                                        ${(item.price * item.quantity).toFixed(2)}
+                                                    </TableCell>
+                                                    <TableCell align="right">
+                                                        <IconButton size="small" onClick={() => removeItemFromBooking(item.id)} color="error">
+                                                            <CloseIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        </CardContent>
+                    </Card>
 
-                {/* SECTION 3: Items */}
-                <Grid item xs={12} md={7}>
-                    <Typography variant="overline" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 1.2 }}>
-                      Attire Selection
-                   </Typography>
-                   <Divider sx={{ mb: 2 }} />
-                   
-                   <Autocomplete
-                        options={inventory}
-                        getOptionLabel={(option) => `${option.name} ($${option.price})` || ''}
-                        onChange={handleItemSelect}
-                        renderInput={(params) => (
-                            <TextField 
-                                {...params} 
-                                label="Search Inventory" 
-                                placeholder="Search dresses, suits..."
-                                InputProps={{
-                                    ...params.InputProps,
-                                    startAdornment: (
-                                        <>
-                                            <InputAdornment position="start"><ShoppingBagIcon color="action" /></InputAdornment>
-                                            {params.InputProps.startAdornment}
-                                        </>
-                                    )
-                                }}
-                            />
-                        )}
-                        renderOption={(props, option) => (
-                            <li {...props} key={option.id}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                                    <Typography variant="body2" fontWeight="600">{option.name}</Typography>
-                                    <Typography variant="body2" color="primary.main" fontWeight="bold">${option.price}</Typography>
-                                </Box>
-                            </li>
-                        )}
-                   />
-
-                   <Box sx={{ mt: 2, maxHeight: 300, overflowY: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                     {formData.items.length === 0 ? (
-                        <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-                            <ShoppingBagIcon sx={{ fontSize: 40, color: 'action.disabled', mb: 1 }} />
-                            <Typography variant="body2">No items selected yet</Typography>
-                        </Box>
-                     ) : (
-                         <List>
-                            {formData.items.map((item) => (
-                                <ListItem 
-                                    key={item.id}
-                                    secondaryAction={
-                                        <IconButton edge="end" onClick={() => removeItemFromBooking(item.id)} color="error">
-                                            <DeleteIcon />
-                                        </IconButton>
-                                    }
-                                >
-                                    <ListItemAvatar>
-                                        <Avatar sx={{ bgcolor: 'secondary.light', color: 'secondary.main' }}>
-                                            <CheckCircleIcon />
-                                        </Avatar>
-                                    </ListItemAvatar>
-                                    <ListItemText 
-                                        primary={<Typography fontWeight="600">{item.name}</Typography>}
-                                        secondary={<Typography variant="body2" color="primary.main" fontWeight="bold">${item.price.toFixed(2)}</Typography>}
-                                    />
-                                </ListItem>
-                            ))}
-                         </List>
-                     )}
-                   </Box>
-                   
-                   <Box sx={{ mt: 3 }}>
-                      <Grid container spacing={2}>
-                          <Grid item xs={12}>
-                              <TextField
-                                 label="Booking Notes"
-                                 name="notes"
-                                 value={formData.notes}
-                                 onChange={handleChange}
-                                 fullWidth
-                                 multiline
-                                 rows={2}
-                              />
-                          </Grid>
-                          <Grid item xs={12}>
-                              <TextField
-                                 label="Accessories Included"
-                                 name="accessories"
-                                 value={formData.accessories}
-                                 onChange={handleChange}
-                                 fullWidth
-                                 multiline
-                                 rows={1}
-                                 placeholder="Belts, ties, etc..."
-                              />
-                          </Grid>
-                      </Grid>
-                   </Box>
-                </Grid>
-
-                {/* SECTION 4: Financials */}
-                <Grid item xs={12} md={5}>
-                    <Typography variant="overline" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 1.2 }}>
-                      Financial Summary
-                   </Typography>
-                   <Divider sx={{ mb: 2 }} />
-                   
-                   <Card sx={{ bgcolor: 'grey.900', color: 'white', borderRadius: 4, overflow: 'visible' }}>
-                      <CardContent sx={{ p: 3 }}>
-                         
-                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mb: 3 }}>
-                             <Box>
-                                 <Typography variant="caption" color="grey.500" fontWeight="bold" letterSpacing={1}>TOTAL</Typography>
-                                 <Typography variant="h4" fontWeight="900" sx={{ lineHeight: 1 }}>${formData.total_amount.toFixed(2)}</Typography>
+                    {/* Notes */}
+                    <Card variant="outlined" sx={{ borderRadius: 3 }}>
+                        <CardContent sx={{ p: 3 }}>
+                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                 <TextField
+                                     label="Internal Notes"
+                                     name="notes"
+                                     value={formData.notes}
+                                     onChange={handleChange}
+                                     fullWidth
+                                     multiline
+                                     rows={2}
+                                     size="small"
+                                     placeholder="Any special requests or details..."
+                                 />
+                                 <TextField
+                                     label="Accessories Included"
+                                     name="accessories"
+                                     value={formData.accessories}
+                                     onChange={handleChange}
+                                     fullWidth
+                                     size="small"
+                                     placeholder="Belts, pins, additional items..."
+                                 />
                              </Box>
-                             <FormControl size="small" sx={{ minWidth: 100 }}>
-                                 <Select
-                                    name="payment_status"
-                                    value={formData.payment_status}
-                                    onChange={handleChange}
-                                    sx={{ 
-                                        color: 'white', 
-                                        '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' },
-                                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
-                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'primary.main' },
-                                        '.MuiSvgIcon-root': { color: 'white' },
-                                        fontSize: '0.8rem',
-                                        fontWeight: 'bold',
-                                        textTransform: 'uppercase'
-                                    }}
-                                 >
-                                     <MenuItem value="pending">Pending</MenuItem>
-                                     <MenuItem value="partial">Partial</MenuItem>
-                                     <MenuItem value="paid">Paid</MenuItem>
-                                 </Select>
-                             </FormControl>
-                         </Box>
-                         
-                         <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 3 }} />
-                         
-                         <Box sx={{ mb: 3 }}>
-                            <Typography variant="caption" color="grey.400" fontWeight="bold" letterSpacing={1}>DEPOSIT AMOUNT</Typography>
-                            <TextField
-                                name="deposit_amount"
-                                value={formData.deposit_amount}
-                                onChange={handleChange}
-                                type="number"
-                                fullWidth
-                                InputProps={{
-                                    startAdornment: <InputAdornment position="start"><Typography color="grey.500">$</Typography></InputAdornment>,
-                                    sx: { color: 'white', fontSize: '1.5rem', fontWeight: 'bold' }
-                                }}
-                                sx={{ 
-                                    mt: 1,
-                                    '& .MuiOutlinedInput-root': { 
-                                        bgcolor: 'rgba(255,255,255,0.05)',
-                                        '& fieldset': { border: 'none' } 
-                                    }
-                                }}
-                            />
-                         </Box>
-                         
-                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                             <Typography variant="caption" color="grey.500" fontWeight="bold" letterSpacing={1}>BALANCE DUE</Typography>
-                             <Typography 
-                                variant="h3" 
-                                fontWeight="900" 
-                                color={formData.remaining_balance > 0 ? 'error.light' : 'success.light'}
-                             >
-                                ${formData.remaining_balance.toFixed(2)}
-                             </Typography>
-                         </Box>
-                      </CardContent>
-                   </Card>
-                </Grid>
-                
-             </Grid>
-          </form>
-        </DialogContent>
+                        </CardContent>
+                    </Card>
 
-        <DialogActions sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
-            {booking && onDelete && (
-                <Button 
-                    onClick={onDelete} 
-                    color="error" 
-                    variant="outlined" 
-                    startIcon={<DeleteIcon />}
-                    sx={{ mr: 'auto', borderRadius: 2 }}
-                >
-                    Terminate Booking
-                </Button>
-            )}
-            <Button onClick={onCancel} color="inherit" sx={{ mr: 1, borderRadius: 2 }}>
-                Cancel
-            </Button>
-            <Button 
-                onClick={handleSubmit} 
-                variant="contained" 
-                size="large"
-                disabled={loading || formData.items.length === 0}
-                startIcon={loading ? <AccessTimeIcon /> : <SaveIcon />}
-                sx={{ borderRadius: 2, px: 4 }}
-            >
-                {booking ? 'Update Recording' : 'Create Booking'}
-            </Button>
-        </DialogActions>
+                 </Stack>
+              </form>
+           </Box>
+
+           {/* RIGHT PANEL: Receipt Summary */}
+           <Box sx={{ 
+               flex: 3, 
+               bgcolor: 'background.default', 
+               borderLeft: { md: '1px solid' }, 
+               borderColor: 'divider',
+               display: 'flex',
+               flexDirection: 'column'
+           }}>
+               <Box sx={{ p: 3, flexGrow: 1, overflowY: 'auto' }}>
+                  <Paper elevation={0} sx={{ 
+                      p: 4, 
+                      borderRadius: 3, 
+                      border: '2px dashed',
+                      borderColor: 'primary.light', 
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      bgcolor: 'grey.50'
+                  }}>
+                      <Box>
+                          <Typography variant="overline" color="text.secondary" fontWeight="bold" letterSpacing={1}>
+                              RECEIPT SUMMARY
+                          </Typography>
+                          <Divider sx={{ my: 2 }} />
+                          
+                          <Stack spacing={2} sx={{ mb: 4 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <Typography variant="body2" color="text.secondary">Total Items</Typography>
+                                  <Typography variant="body2" fontWeight="600">{formData.items.length}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <Typography variant="body2" color="text.secondary">Total Amount</Typography>
+                                  <TextField 
+                                      name="total_amount"
+                                      value={formData.total_amount}
+                                      onChange={handleChange}
+                                      type="number"
+                                      size="small"
+                                      InputProps={{ 
+                                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                          sx: { fontSize: '1rem', fontWeight: 'bold', width: '120px', py: 0.5, textAlign: 'right' } 
+                                      }}
+                                  />
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <Typography variant="body2" color="text.secondary">Deposit Paid</Typography>
+                                  <TextField 
+                                      name="deposit_amount"
+                                      value={formData.deposit_amount}
+                                      onChange={handleChange}
+                                      type="number"
+                                      size="small"
+                                      InputProps={{ 
+                                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                          sx: { fontSize: '0.875rem', fontWeight: 'bold', width: '120px', py: 0.5 } 
+                                      }}
+                                  />
+                              </Box>
+                          </Stack>
+                      </Box>
+
+                      <Box sx={{ bgcolor: 'white', p: 3, borderRadius: 3, border: '2px solid', borderColor: 'primary.main', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mb: 1 }}>
+                               <Typography variant="body2" fontWeight="bold" color="text.primary">BALANCE DUE</Typography>
+                               <Typography variant="h4" fontWeight="900" color={formData.remaining_balance > 0 ? 'error.main' : 'success.main'}>
+                                   ${formData.remaining_balance.toFixed(2)}
+                               </Typography>
+                           </Box>
+                           
+                           <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                               <Typography variant="caption" color="text.secondary">Status:</Typography>
+                               <Chip 
+                                    label={formData.payment_status?.toUpperCase() || 'PENDING'} 
+                                    size="small" 
+                                    color={formData.payment_status === 'paid' ? 'success' : formData.payment_status === 'partial' ? 'warning' : 'default'} 
+                                    variant="soft" />
+                           </Box>
+                      </Box>
+                  </Paper>
+               </Box>
+
+               {/* Action Footer */}
+               <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', display: 'grid', gap: 2 }}>
+                   <Button 
+                       onClick={handleSubmit} 
+                       variant="contained" 
+                       size="large"
+                       fullWidth
+                       disabled={loading || formData.items.length === 0}
+                       startIcon={loading ? <AccessTimeIcon /> : <SaveIcon />}
+                       sx={{ borderRadius: 2, height: 48, fontWeight: 700 }}
+                   >
+                       {booking ? 'Update Booking' : 'Confirm Booking'}
+                   </Button>
+                   <Button onClick={onCancel} color="inherit" fullWidth sx={{ borderRadius: 2 }}>
+                       Cancel
+                   </Button>
+               </Box>
+           </Box>
+
+        </DialogContent>
       </Dialog>
       
       <QuickAddCustomer 
