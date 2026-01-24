@@ -1,35 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
-const UserForm = ({ user, onSave, onCancel }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'user',
+const UserForm = ({ user, onSave, onCancel }: any) => {
+  const [formData, setFormData] = useState<any>({
+    name: "",
+    username: "",
+    email: "",
+    password: "",
+    role: "user",
   });
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<any>({});
 
   useEffect(() => {
     if (user) {
       setFormData({
-        name: user.name || '',
-        email: user.email || '',
-        password: '',
-        role: user.role || 'user',
+        name: user.name || "",
+        username: user.username || "",
+        email: user.email || "",
+        password: "",
+        role: user.role || "user",
       });
     }
   }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => {
+      setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[name];
         return newErrors;
@@ -39,38 +41,42 @@ const UserForm = ({ user, onSave, onCancel }) => {
 
   const validate = () => {
     const newErrors = {};
-    
+
     if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = "Name is required";
     }
-    
+
+    if (!formData.username.trim()) {
+      newErrors.username = "Username is required";
+    }
+
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
+      newErrors.email = "Invalid email format";
     }
-    
+
     if (!user && !formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = "Password is required";
     } else if (formData.password && formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = "Password must be at least 6 characters";
     }
-    
+
     if (!formData.role) {
-      newErrors.role = 'Role is required';
+      newErrors.role = "Role is required";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validate()) {
       return;
     }
-    
+
     setLoading(true);
     try {
       const dataToSend = { ...formData };
@@ -78,7 +84,7 @@ const UserForm = ({ user, onSave, onCancel }) => {
       if (user && !dataToSend.password) {
         delete dataToSend.password;
       }
-      
+
       await onSave(dataToSend);
     } catch (error) {
       if (error.response?.data?.errors) {
@@ -94,7 +100,7 @@ const UserForm = ({ user, onSave, onCancel }) => {
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
         <div className="p-6">
           <h2 className="text-2xl font-bold mb-4">
-            {user ? 'Edit User' : 'New User'}
+            {user ? "Edit User" : "New User"}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -108,10 +114,34 @@ const UserForm = ({ user, onSave, onCancel }) => {
                 value={formData.name}
                 onChange={handleChange}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  errors.name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-indigo-500'
+                  errors.name
+                    ? "border-red-500 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-indigo-500"
                 }`}
               />
-              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+              {errors.name && (
+                <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Username *
+              </label>
+              <input
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  errors.username
+                    ? "border-red-500 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-indigo-500"
+                }`}
+              />
+              {errors.username && (
+                <p className="text-red-500 text-xs mt-1">{errors.username}</p>
+              )}
             </div>
 
             <div>
@@ -124,15 +154,19 @@ const UserForm = ({ user, onSave, onCancel }) => {
                 value={formData.email}
                 onChange={handleChange}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  errors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-indigo-500'
+                  errors.email
+                    ? "border-red-500 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-indigo-500"
                 }`}
               />
-              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Password {user ? '(leave blank to keep current)' : '*'}
+                Password {user ? "(leave blank to keep current)" : "*"}
               </label>
               <input
                 type="password"
@@ -140,10 +174,14 @@ const UserForm = ({ user, onSave, onCancel }) => {
                 value={formData.password}
                 onChange={handleChange}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  errors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-indigo-500'
+                  errors.password
+                    ? "border-red-500 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-indigo-500"
                 }`}
               />
-              {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+              )}
             </div>
 
             <div>
@@ -155,14 +193,18 @@ const UserForm = ({ user, onSave, onCancel }) => {
                 value={formData.role}
                 onChange={handleChange}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  errors.role ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-indigo-500'
+                  errors.role
+                    ? "border-red-500 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-indigo-500"
                 }`}
               >
                 <option value="user">User</option>
                 <option value="manager">Manager</option>
                 <option value="admin">Admin</option>
               </select>
-              {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
+              {errors.role && (
+                <p className="text-red-500 text-xs mt-1">{errors.role}</p>
+              )}
             </div>
 
             <div className="flex justify-end space-x-4 pt-4">
@@ -178,7 +220,7 @@ const UserForm = ({ user, onSave, onCancel }) => {
                 disabled={loading}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
               >
-                {loading ? 'Saving...' : 'Save'}
+                {loading ? "Saving..." : "Save"}
               </button>
             </div>
           </form>
@@ -189,4 +231,3 @@ const UserForm = ({ user, onSave, onCancel }) => {
 };
 
 export default UserForm;
-

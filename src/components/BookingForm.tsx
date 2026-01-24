@@ -179,10 +179,18 @@ const BookingForm: React.FC<BookingFormProps> = ({
         deposit_amount: parseFloat(booking.deposit_amount as any) || 0,
         total_amount: parseFloat(booking.total_amount as any) || 0,
         remaining_balance: parseFloat(booking.remaining_balance as any) || 0,
-        event_date:
-          booking.event_date || booking.pickup_date || bookingDate || "",
-        pickup_date:
-          booking.pickup_date || booking.event_date || bookingDate || "",
+        event_date: (
+          booking.event_date ||
+          booking.pickup_date ||
+          bookingDate ||
+          ""
+        ).split("T")[0],
+        pickup_date: (
+          booking.pickup_date ||
+          booking.event_date ||
+          bookingDate ||
+          ""
+        ).split("T")[0],
         payment_method: booking.payment_method || "cash",
         items:
           booking.items?.map((item) => ({
@@ -408,22 +416,22 @@ const BookingForm: React.FC<BookingFormProps> = ({
                       sx: { borderRadius: 3 },
                     }}
                   />
+                  <TextField
+                    label="Invoice Number (Manual)"
+                    {...register("invoice_number", {
+                      required: "Invoice number is required",
+                    })}
+                    error={!!errors.invoice_number}
+                    helperText={errors.invoice_number?.message}
+                    fullWidth
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">#</InputAdornment>
+                      ),
+                      sx: { borderRadius: 3 },
+                    }}
+                  />
                 </Stack>
-                <TextField
-                  label="Invoice Number (Manual)"
-                  {...register("invoice_number", {
-                    required: "Invoice number is required",
-                  })}
-                  error={!!errors.invoice_number}
-                  helperText={errors.invoice_number?.message}
-                  fullWidth
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">#</InputAdornment>
-                    ),
-                    sx: { borderRadius: 3 },
-                  }}
-                />
               </Stack>
             </Box>
 
@@ -920,7 +928,11 @@ const BookingForm: React.FC<BookingFormProps> = ({
               disabled={loading}
               sx={{ borderRadius: 2, px: 4, minWidth: 140 }}
             >
-              {loading ? "Saving..." : "Complete Booking"}
+              {loading
+                ? "Saving..."
+                : booking
+                  ? "Update Booking"
+                  : "Complete Booking"}
             </Button>
           )}
         </DialogActions>

@@ -1,14 +1,26 @@
-import { useState, useEffect } from 'react';
-import { customersAPI } from '../services/api';
-import { User, Phone, Mail, MapPin, Edit2, Trash2, Search, Plus } from 'lucide-react';
-import CustomerDialog from '../components/CustomerDialog';
+import { useState, useEffect } from "react";
+import { customersAPI } from "../services/api";
+import {
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Edit2,
+  Trash2,
+  Search,
+  Plus,
+} from "lucide-react";
+import CustomerDialog from "../components/CustomerDialog";
+import { Customer } from "../types";
 
 const CustomersList = () => {
-  const [customers, setCustomers] = useState([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null,
+  );
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchCustomers();
@@ -18,9 +30,9 @@ const CustomersList = () => {
     try {
       setLoading(true);
       const res = await customersAPI.getAll({ search: searchQuery });
-      setCustomers(res.data);
+      setCustomers(res.data.data || res.data || []);
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      console.error("Error fetching customers:", error);
     } finally {
       setLoading(false);
     }
@@ -35,13 +47,13 @@ const CustomersList = () => {
     fetchCustomers();
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this customer?')) {
+  const handleDelete = async (id: number | string) => {
+    if (window.confirm("Are you sure you want to delete this customer?")) {
       try {
         await customersAPI.delete(id);
         fetchCustomers();
       } catch (error) {
-        console.error('Error deleting customer:', error);
+        console.error("Error deleting customer:", error);
       }
     }
   };
@@ -50,8 +62,12 @@ const CustomersList = () => {
     <div className="p-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Customers</h1>
-          <p className="text-slate-500 mt-1">Manage your customer database and profiles</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+            Customers
+          </h1>
+          <p className="text-slate-500 mt-1">
+            Manage your customer database and profiles
+          </p>
         </div>
         <button
           onClick={() => handleOpenDialog()}
@@ -75,31 +91,41 @@ const CustomersList = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          Array(6).fill(0).map((_, i) => (
-            <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 animate-pulse">
-              <div className="flex items-center space-x-4 mb-4">
-                <div className="w-12 h-12 bg-slate-100 rounded-2xl"></div>
-                <div className="space-y-2 flex-1">
-                  <div className="h-4 bg-slate-100 rounded w-1/2"></div>
-                  <div className="h-3 bg-slate-50 rounded w-1/4"></div>
+          Array(6)
+            .fill(0)
+            .map((_, i) => (
+              <div
+                key={i}
+                className="bg-white p-6 rounded-3xl border border-slate-100 animate-pulse"
+              >
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="w-12 h-12 bg-slate-100 rounded-2xl"></div>
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 bg-slate-100 rounded w-1/2"></div>
+                    <div className="h-3 bg-slate-50 rounded w-1/4"></div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="h-3 bg-slate-50 rounded w-full"></div>
+                  <div className="h-3 bg-slate-50 rounded w-full"></div>
                 </div>
               </div>
-              <div className="space-y-3">
-                <div className="h-3 bg-slate-50 rounded w-full"></div>
-                <div className="h-3 bg-slate-50 rounded w-full"></div>
-              </div>
-            </div>
-          ))
+            ))
         ) : customers.length > 0 ? (
           customers.map((customer) => (
-            <div key={customer.id} className="bg-white p-6 rounded-3xl border border-slate-100 hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all group relative overflow-hidden">
+            <div
+              key={customer.id}
+              className="bg-white p-6 rounded-3xl border border-slate-100 hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all group relative overflow-hidden"
+            >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center font-bold text-lg">
                     {customer.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors uppercase">{customer.name}</h3>
+                    <h3 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors uppercase">
+                      {customer.name}
+                    </h3>
                     <p className="text-sm text-slate-500 flex items-center mt-0.5">
                       <Phone className="w-3 h-3 mr-1" />
                       {customer.phone_number}
@@ -136,7 +162,7 @@ const CustomersList = () => {
                   </div>
                 )}
               </div>
-              
+
               {customer.notes && (
                 <div className="mt-4 pt-4 border-t border-slate-50 text-xs text-slate-400 italic">
                   {customer.notes}
@@ -149,8 +175,12 @@ const CustomersList = () => {
             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <User className="w-10 h-10 text-slate-200" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">No customers found</h3>
-            <p className="text-slate-500">Try adjusting your search or add a new customer.</p>
+            <h3 className="text-lg font-bold text-slate-900">
+              No customers found
+            </h3>
+            <p className="text-slate-500">
+              Try adjusting your search or add a new customer.
+            </p>
           </div>
         )}
       </div>

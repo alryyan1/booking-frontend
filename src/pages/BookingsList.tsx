@@ -116,7 +116,7 @@ const BookingsList = () => {
         search: searchTerm || undefined, // Keep generic search if needed
       };
       const response = await bookingsAPI.getAll(params);
-      setBookings(response.data.data || response.data);
+      setBookings(response.data.data || response.data || []);
     } catch (error) {
       console.error("Error fetching bookings:", error);
       toast.error("Failed to load bookings");
@@ -400,19 +400,32 @@ const BookingsList = () => {
                   <Stack spacing={1}>
                     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                       {booking.items?.map((item) => (
-                        <Chip
+                        <Tooltip
                           key={item.id}
-                          label={item.name}
-                          size="small"
-                          icon={
-                            <Box
-                              component="img"
-                              src={dressIcon}
-                              sx={{ width: 14, height: 14 }}
-                            />
+                          title={
+                            item.category
+                              ? `${item.category.name_en} (${item.category.name_ar})`
+                              : "No Category"
                           }
-                          sx={{ borderRadius: 1.5, fontSize: "0.7rem" }}
-                        />
+                          arrow
+                        >
+                          <Chip
+                            label={item.name}
+                            size="small"
+                            icon={
+                              <Box
+                                component="img"
+                                src={dressIcon}
+                                sx={{ width: 14, height: 14 }}
+                              />
+                            }
+                            sx={{
+                              borderRadius: 1.5,
+                              fontSize: "0.7rem",
+                              cursor: "help",
+                            }}
+                          />
+                        </Tooltip>
                       ))}
                     </Box>
                     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>

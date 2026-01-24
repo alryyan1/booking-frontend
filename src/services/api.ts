@@ -1,5 +1,6 @@
 import axios, { InternalAxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "../config/constants";
+import { toast } from "sonner";
 import {
   Customer,
   Item,
@@ -36,10 +37,19 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const message =
+      error.response?.data?.message ||
+      error.message ||
+      "An unexpected error occurred";
+
+    // Don't show toast for 401 as we redirect to login, unless you want to
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       window.location.href = "/login";
+      // Optional: toast.error("Session expired. Please login again.");
+    } else {
+      toast.error(message);
     }
     return Promise.reject(error);
   },

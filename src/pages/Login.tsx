@@ -143,18 +143,10 @@ const Login = () => {
               <div className="p-3 bg-white/20 backdrop-blur-md rounded-full">
                 <Heart className="w-8 h-8 text-rose-100" fill="currentColor" />
               </div>
-              <span className="text-xl font-serif-display tracking-widest uppercase text-rose-100">Beauty &amp; Grace</span>
+              {/* <span className="text-xl font-serif-display tracking-widest uppercase text-rose-100">Beauty &amp; Grace</span> */}
             </div>
             
-            <h1 className="text-6xl font-serif-display font-medium tracking-tight mb-8 leading-tight">
-              Welcome to Your <br />
-              <span className="bg-gradient-to-r from-white to-rose-200 bg-clip-text text-transparent italic">
-                Sanctuary
-              </span>
-            </h1>
-            <p className="text-xl text-rose-50 max-w-md leading-relaxed font-body font-light tracking-wide">
-              Manage your bookings with elegance. Use this beautiful space to organize your schedule effortlessly and with style.
-            </p>
+        
           </motion.div>
           
           <motion.div 
@@ -163,8 +155,8 @@ const Login = () => {
             transition={{ delay: 1, duration: 1 }}
             className="mt-16 flex items-center space-x-4 text-rose-100/70 text-sm font-body"
           >
-            <div className="w-16 h-px bg-rose-200/40" />
-            <span className="italic tracking-widest uppercase text-xs">Crafted with love for you</span>
+            {/* <div className="w-16 h-px bg-rose-200/40" /> */}
+            {/* <span className="italic tracking-widest uppercase text-xs">Crafted with love for you</span> */}
           </motion.div>
         </div>
       </motion.div>
@@ -199,9 +191,7 @@ const Login = () => {
                 </div>
               </motion.div>
               
-              <h2 className="text-4xl font-serif-display text-gray-800 mb-2">
-                Hello, Beautiful
-              </h2>
+          
               <p className="text-gray-500 font-body font-light">Please sign in to continue</p>
             </div>
 

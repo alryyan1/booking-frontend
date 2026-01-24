@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { categoriesAPI, calendarAPI } from '../services/api';
-import { getMonthName } from '../utils/dateHelpers';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { categoriesAPI, calendarAPI } from "../services/api";
+import { getMonthName } from "../utils/dateHelpers";
+import { Category } from "../types";
 
 const CategorySelection = () => {
-  const { monthId } = useParams();
+  const { monthId } = useParams<{ monthId: string }>();
   const navigate = useNavigate();
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const currentYear = new Date().getFullYear();
 
@@ -14,9 +15,9 @@ const CategorySelection = () => {
     const fetchCategories = async () => {
       try {
         const response = await categoriesAPI.getAll();
-        setCategories(response.data);
+        setCategories(response.data.data || response.data || []);
       } catch (error) {
-        console.error('Error fetching categories:', error);
+        console.error("Error fetching categories:", error);
       } finally {
         setLoading(false);
       }
@@ -25,7 +26,7 @@ const CategorySelection = () => {
     fetchCategories();
   }, []);
 
-  const handleCategoryClick = (categoryId) => {
+  const handleCategoryClick = (categoryId: number | string) => {
     navigate(`/month/${monthId}/category/${categoryId}`);
   };
 
@@ -42,7 +43,7 @@ const CategorySelection = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">
-            {getMonthName(parseInt(monthId))} {currentYear}
+            {getMonthName(parseInt(monthId || "0"))} {currentYear}
           </h1>
           <p className="text-gray-600 mt-2">Select a category</p>
         </div>
@@ -71,4 +72,3 @@ const CategorySelection = () => {
 };
 
 export default CategorySelection;
-
