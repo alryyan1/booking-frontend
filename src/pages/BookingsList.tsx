@@ -163,23 +163,18 @@ const BookingsList = () => {
   };
 
   const handleSave = async (formData) => {
-    try {
-      if (selectedBooking) {
-        const response = await bookingsAPI.update(selectedBooking.id, formData);
-        const updatedBooking = response.data.data || response.data;
-        setBookings((prev) =>
-          prev.map((b) => (b.id === selectedBooking.id ? updatedBooking : b)),
-        );
-      } else {
-        await bookingsAPI.create(formData);
-        fetchBookings(); // Full refresh for new bookings
-      }
-      setShowForm(false);
-      setSelectedBooking(null);
-    } catch (error) {
-      console.error("Error saving booking:", error);
-      toast.error("Error saving booking. Check console for details.");
+    if (selectedBooking) {
+      const response = await bookingsAPI.update(selectedBooking.id, formData);
+      const updatedBooking = response.data.data || response.data;
+      setBookings((prev) =>
+        prev.map((b) => (b.id === selectedBooking.id ? updatedBooking : b)),
+      );
+    } else {
+      await bookingsAPI.create(formData);
+      fetchBookings(); // Full refresh for new bookings
     }
+    setShowForm(false);
+    setSelectedBooking(null);
   };
 
   const handleDelete = async (id: number) => {

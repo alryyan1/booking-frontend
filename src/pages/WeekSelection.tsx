@@ -62,29 +62,57 @@ const WeekSelection = () => {
         </div>
 
         <div className="flex flex-wrap gap-4">
-          {weeks.map((week: any) => (
-            <div
-              key={week.week_number}
-              onClick={() => handleWeekClick(week.week_number)}
-              className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-indigo-500 min-w-[200px] relative"
-            >
-              <div className="text-center">
-                <div className="text-2xl font-bold text-indigo-600 mb-2">
-                  Week {week.week_number}
-                </div>
-                <div className="text-sm text-gray-600">
-                  {week.start_date_formatted} - {week.end_date_formatted}
-                </div>
-                {week.booking_count > 0 && (
-                  <div className="mt-2">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      {week.booking_count} Bookings
-                    </span>
+          {weeks.map((week: any) => {
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+            const isCurrentWeek =
+              today >= week.start_date && today <= week.end_date;
+
+            return (
+              <div
+                key={week.week_number}
+                onClick={() => handleWeekClick(week.week_number)}
+                className={`rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-all duration-200 border-2 min-w-[200px] relative ${
+                  isCurrentWeek
+                    ? "bg-indigo-50 border-indigo-600 ring-4 ring-indigo-100 scale-105"
+                    : "bg-white border-transparent hover:border-indigo-500"
+                }`}
+              >
+                <div className="text-center">
+                  {isCurrentWeek && (
+                    <div className="absolute top-0 right-0 left-0 -mt-3 flex justify-center">
+                      <span className="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded-full font-medium shadow-sm">
+                        Current Week
+                      </span>
+                    </div>
+                  )}
+                  <div
+                    className={`text-2xl font-bold mb-2 ${isCurrentWeek ? "text-indigo-800" : "text-indigo-600"}`}
+                  >
+                    Week {week.week_number}
                   </div>
-                )}
+                  <div
+                    className={`text-sm ${isCurrentWeek ? "text-indigo-700" : "text-gray-600"}`}
+                  >
+                    {week.start_date_formatted} - {week.end_date_formatted}
+                  </div>
+                  {week.booking_count > 0 && (
+                    <div className="mt-2">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          isCurrentWeek
+                            ? "bg-indigo-200 text-indigo-900"
+                            : "bg-green-100 text-green-800"
+                        }`}
+                      >
+                        {week.booking_count} Bookings
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

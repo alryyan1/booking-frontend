@@ -1,25 +1,7 @@
-import { useState, useEffect } from "react";
-import { itemsAPI, accessoriesAPI, categoriesAPI } from "../services/api";
-import { Category, Item, Accessory } from "../types";
-import {
-  Plus,
-  Search,
-  Pencil,
-  Trash2,
-  X,
-  Save,
-  Package,
-  Tags,
-  AlertCircle,
-  Check,
-  Loader2,
-  TrendingUp,
-  LayoutGrid,
-  FolderOpen,
-} from "lucide-react";
-import { Stack } from "@mui/material";
+import ItemDialog from "../components/ItemDialog";
 
 const Inventory = () => {
+    // ... existing state ...
   const [activeTab, setActiveTab] = useState(0); // 0 = Items, 1 = Accessories
   const [items, setItems] = useState<Item[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
@@ -30,14 +12,19 @@ const Inventory = () => {
   const [currentItem, setCurrentItem] = useState<{
     id?: number;
     type: string;
+    // We add other item properties to satisfy type checks if needed, but for now `any` or strict types.
+    // Casting in handleOpenModal covers it.
+    name?: string;
+    price?: number | string;
+    category_id?: number | string;
   } | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    price: "",
-    category_id: "",
-  });
-  const [loading, setLoading] = useState(false);
 
+  // loading state for fetching data, but handleSubmit loading is now in ItemDialog
+  // We keep loading for fetchData?
+  // const [loading, setLoading] = useState(false); // Used in fetchData? No, fetching doesn't seem to use loading state explicitly in provided code snippet for table, only modal did. Check fetchData...
+  // Actually fetchData does not use loading state in the provided code snippet (only setAccessories etc). The modal used it.
+  // We can remove loading state if it was only for the modal.
+  
   // Notification State
   const [toast, setToast] = useState({
     show: false,
@@ -50,6 +37,7 @@ const Inventory = () => {
   }, []);
 
   const fetchData = async () => {
+      // ... existing fetchData ...
     try {
       const [itemsRes, accessoriesRes, categoriesRes] = await Promise.all([
         itemsAPI.getAll(),
@@ -75,15 +63,10 @@ const Inventory = () => {
 
   const handleOpenModal = (item: any = null, type = "item") => {
     if (item) {
+        // Just set the item, ItemDialog handles the rest
       setCurrentItem({ ...item, type });
-      setFormData({
-        name: item.name,
-        price: type === "item" ? item.price : "",
-        category_id: type === "item" ? item.category_id || "" : "",
-      });
     } else {
       setCurrentItem({ type });
-      setFormData({ name: "", price: "", category_id: "" });
     }
     setModalOpen(true);
   };
@@ -91,46 +74,19 @@ const Inventory = () => {
   const handleCloseModal = () => {
     setModalOpen(false);
     setCurrentItem(null);
-    setFormData({ name: "", price: "", category_id: "" });
   };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentItem) return;
-    setLoading(true);
-
-    try {
-      const isItem = currentItem.type === "item";
-      const api = isItem ? itemsAPI : accessoriesAPI;
-      const data = isItem ? formData : { name: formData.name };
-
-      if (currentItem.id) {
-        await api.update(currentItem.id, data);
-        showToast(`${isItem ? "Item" : "Accessory"} updated successfully`);
-      } else {
-        await api.create(data);
-        showToast(`New ${isItem ? "Item" : "Accessory"} created successfully`);
-      }
-
+  
+  const handleSuccess = async (newItem: any, type: string) => {
       await fetchData();
-      handleCloseModal();
-    } catch (error) {
-      console.error("Error saving:", error);
-      showToast("Failed to save changes. Please try again.", "error");
-    } finally {
-      setLoading(false);
-    }
+      // Toast is handled in ItemDialog for success, but we can also do it here if we want global.
+      // ItemDialog does it.
   };
 
   const handleDelete = async (id: number, type: string) => {
     showToast("Delete is disabled to preserve history.", "info");
   };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  
+  // Removed handleChange, handleSubmit as they are in ItemDialog now
 
   const filteredItems = items.filter((item) => {
     const matchesSearch = item.name
@@ -218,7 +174,12 @@ const Inventory = () => {
         {/* Tabs */}
         <div className="flex flex-col space-y-1.5 p-6 pb-0">
           <div className="inline-flex h-10 items-center justify-center rounded-md  p-1 text-slate-500 w-fit">
-            <Stack direction="row" spacing={2} alignItems={'center'} justifyContent={"space-between"}>
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems={"center"}
+              justifyContent={"space-between"}
+            >
               <div>
                 {" "}
                 <button
@@ -400,117 +361,17 @@ const Inventory = () => {
       </div>
 
       {/* Custom Modal/Dialog Overlay */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div
-            className="relative w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-lg animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex flex-col space-y-1.5 text-center sm:text-left mb-6">
-              <h2 className="text-lg font-semibold leading-none tracking-tight">
-                {currentItem?.id ? "Edit" : "Add"}{" "}
-                {currentType === "item" ? "Item" : "Accessory"}
-              </h2>
-              <p className="text-sm text-slate-500">
-                {currentItem?.id
-                  ? "Make changes to the existing record details below."
-                  : "Create a new record in your inventory system."}
-              </p>
-            </div>
-
-            <button
-              onClick={handleCloseModal}
-              className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2"
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
-            </button>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Name
-                </label>
-                <input
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  autoFocus
-                  placeholder={
-                    currentType === "item"
-                      ? "e.g., Luxury Wedding Dress"
-                      : "e.g., Pearl Veil"
-                  }
-                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
-                />
-              </div>
-
-              {currentType === "item" && (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none">
-                      Category
-                    </label>
-                    <select
-                      name="category_id"
-                      value={formData.category_id}
-                      onChange={handleChange}
-                      required
-                      className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
-                    >
-                      <option value="">Select Category</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.name_ar}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none">
-                      Price
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-2.5 text-slate-500">
-                        $
-                      </span>
-                      <input
-                        name="price"
-                        type="number"
-                        value={formData.price}
-                        onChange={handleChange}
-                        required
-                        placeholder="0.00"
-                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 pl-7 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 h-10 px-4 py-2 mt-2 sm:mt-0"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-slate-50 hover:bg-slate-900/90 h-10 px-4 py-2"
-                >
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {loading ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Custom Modal/Dialog Overlay is replaced by ItemDialog */}
+      <ItemDialog
+        open={modalOpen}
+        onClose={handleCloseModal}
+        onSuccess={handleSuccess}
+        type={currentType as "item" | "accessory"}
+        initialData={currentItem as Item | Accessory}
+      />
+    </div>
+  );
+};
     </div>
   );
 };

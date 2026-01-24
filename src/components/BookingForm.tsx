@@ -8,6 +8,7 @@ import {
 } from "../services/api";
 import { toast } from "sonner";
 import CustomerDialog from "./CustomerDialog";
+import ItemDialog from "./ItemDialog";
 import {
   Dialog,
   DialogTitle,
@@ -134,6 +135,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const [accessories, setAccessories] = useState<Accessory[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showItemModal, setShowItemModal] = useState(false);
   const [prepDays, setPrepDays] = useState(3); // Default to 3 days
 
   // For Autocomplete display object
@@ -354,11 +356,10 @@ const BookingForm: React.FC<BookingFormProps> = ({
       console.error("Submission error:", error);
       if (error.response?.data?.errors) {
         const errors = error.response.data.errors;
-        if (errors.items) {
-          toast.error(errors.items[0]);
-        } else {
-          toast.error("Failed to save booking. Please check the form.");
-        }
+        // Get the first error message from the object (handles nested keys like items.0.price)
+        const firstErrorKey = Object.keys(errors)[0];
+        const firstErrorMessage = errors[firstErrorKey][0];
+        toast.error(firstErrorMessage);
       } else {
         toast.error("An unexpected error occurred. Please try again.");
       }
@@ -503,82 +504,93 @@ const BookingForm: React.FC<BookingFormProps> = ({
         return (
           <Stack sx={{ mt: 2 }} spacing={4}>
             <Box>
-              <Autocomplete
-                options={inventory}
-                getOptionLabel={(option) =>
-                  `${option.name} (OMR ${option.price})`
-                }
-                loading={isCheckingAvailability}
-                onChange={(_, newValue) => {
-                  if (newValue && !reservedItemIds.includes(newValue.id)) {
-                    handleItemSelect(newValue);
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <Autocomplete
+                  fullWidth
+                  options={inventory}
+                  getOptionLabel={(option) =>
+                    `${option.name} (OMR ${option.price})`
                   }
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Search Inventory"
-                    placeholder={
-                      watchedEventDate
-                        ? "Search by name..."
-                        : "Please select event date first"
+                  loading={isCheckingAvailability}
+                  onChange={(_, newValue) => {
+                    if (newValue && !reservedItemIds.includes(newValue.id)) {
+                      handleItemSelect(newValue);
                     }
-                    fullWidth
-                    disabled={!watchedEventDate}
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {isCheckingAvailability ? (
-                            <CircularProgress color="inherit" size={20} />
-                          ) : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    }}
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 3 } }}
-                  />
-                )}
-                renderOption={(props, option) => {
-                  const isReserved = reservedItemIds.includes(option.id);
-                  return (
-                    <li
-                      {...props}
-                      key={option.id}
-                      style={{
-                        opacity: isReserved ? 0.5 : 1,
-                        pointerEvents: isReserved ? "none" : "auto",
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Search Inventory"
+                      placeholder={
+                        watchedEventDate
+                          ? "Search by name..."
+                          : "Please select event date first"
+                      }
+                      disabled={!watchedEventDate}
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {isCheckingAvailability ? (
+                              <CircularProgress color="inherit" size={20} />
+                            ) : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
                       }}
-                    >
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          width: "100%",
-                          alignItems: "center",
+                      sx={{ "& .MuiOutlinedInput-root": { borderRadius: 3 } }}
+                    />
+                  )}
+                  renderOption={(props, option) => {
+                    const isReserved = reservedItemIds.includes(option.id);
+                    return (
+                      <li
+                        {...props}
+                        key={option.id}
+                        style={{
+                          opacity: isReserved ? 0.5 : 1,
+                          pointerEvents: isReserved ? "none" : "auto",
                         }}
                       >
-                        <Box>
-                          <Typography variant="body1" fontWeight="600">
-                            {option.name}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            color={isReserved ? "error.main" : "success.main"}
-                          >
-                            {isReserved ? "Reserved / In Prep" : "Available"}
-                          </Typography>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            width: "100%",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Box>
+                            <Typography variant="body1" fontWeight="600">
+                              {option.name}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color={isReserved ? "error.main" : "success.main"}
+                            >
+                              {isReserved ? "Reserved / In Prep" : "Available"}
+                            </Typography>
+                          </Box>
+                          <Chip
+                            label={`OMR ${option.price}`}
+                            size="small"
+                            variant="outlined"
+                          />
                         </Box>
-                        <Chip
-                          label={`OMR ${option.price}`}
-                          size="small"
-                          variant="outlined"
-                        />
-                      </Box>
-                    </li>
-                  );
-                }}
-              />
+                      </li>
+                    );
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  sx={{ borderRadius: 3, px: 3, height: 56 }}
+                  startIcon={<AddIcon />}
+                  onClick={() => setShowItemModal(true)}
+                >
+                  New
+                </Button>
+              </Box>
             </Box>
 
             <TableContainer
@@ -941,7 +953,18 @@ const BookingForm: React.FC<BookingFormProps> = ({
       <CustomerDialog
         open={showCustomerModal}
         onClose={() => setShowCustomerModal(false)}
-        onSave={handleCustomerCreated}
+        onSuccess={handleCustomerCreated}
+      />
+      <ItemDialog
+        open={showItemModal}
+        onClose={() => setShowItemModal(false)}
+        onSuccess={(newItem: Item | Accessory) => {
+          if (newItem && "price" in newItem) {
+            setInventory((prev) => [...prev, newItem as Item]);
+            handleItemSelect(newItem as Item);
+          }
+        }}
+        type="item"
       />
     </>
   );

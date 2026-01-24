@@ -101,41 +101,36 @@ const DailyBookingTable = () => {
   };
 
   const handleSave = async (formData: any) => {
-    try {
-      if (selectedBooking) {
-        await bookingsAPI.update(selectedBooking.id, formData);
-      } else {
-        await bookingsAPI.create(formData);
-      }
-
-      // Small delay to ensure backend has processed the request
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Refresh bookings
-      if (weekData) {
-        const bookingsRes = await bookingsAPI.getAll({
-          week_start: weekData.start_date,
-          week_end: weekData.end_date,
-          category_id: categoryId,
-        });
-
-        const bookingsData = (bookingsRes.data as any).data || [];
-        const normalizedBookings = bookingsData.map((booking: any) => ({
-          ...booking,
-          booking_date: booking.event_date
-            ? booking.event_date.split("T")[0]
-            : booking.pickup_date?.split("T")[0],
-        }));
-        setBookings(normalizedBookings);
-      }
-
-      setShowForm(false);
-      setSelectedBooking(null);
-      setSelectedDate(null);
-    } catch (error) {
-      console.error("Error saving booking:", error);
-      // Toast handled by interceptor
+    if (selectedBooking) {
+      await bookingsAPI.update(selectedBooking.id, formData);
+    } else {
+      await bookingsAPI.create(formData);
     }
+
+    // Small delay to ensure backend has processed the request
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Refresh bookings
+    if (weekData) {
+      const bookingsRes = await bookingsAPI.getAll({
+        week_start: weekData.start_date,
+        week_end: weekData.end_date,
+        category_id: categoryId,
+      });
+
+      const bookingsData = (bookingsRes.data as any).data || [];
+      const normalizedBookings = bookingsData.map((booking: any) => ({
+        ...booking,
+        booking_date: booking.event_date
+          ? booking.event_date.split("T")[0]
+          : booking.pickup_date?.split("T")[0],
+      }));
+      setBookings(normalizedBookings);
+    }
+
+    setShowForm(false);
+    setSelectedBooking(null);
+    setSelectedDate(null);
   };
 
   const handleDelete = async () => {
@@ -236,7 +231,7 @@ const DailyBookingTable = () => {
           </div>
         </div>
 
-        <div className="mb-6">
+        <div className="mb-1">
           <input
             type="text"
             placeholder="Search by invoice, phone, or item..."
