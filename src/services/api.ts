@@ -80,8 +80,22 @@ export const usersAPI = {
 
 // Calendar API
 export const calendarAPI = {
-  getWeeks: (month: number | string, year: number | string) =>
-    api.get(`/calendar/weeks/${month}/${year}`),
+  getWeeks: (
+    month: number | string,
+    year: number | string,
+    categoryId?: number | string,
+  ) =>
+    api.get(`/calendar/weeks/${month}/${year}`, {
+      params: { category_id: categoryId },
+    }),
+  getMonthlyCounts: (year: number | string) =>
+    api.get<{ success: boolean; counts: Record<number, number> }>(
+      `/calendar/counts/${year}`,
+    ),
+  getCategoryCounts: (month: number | string, year: number | string) =>
+    api.get<{ success: boolean; counts: Record<number, number> }>(
+      `/calendar/category-counts/${month}/${year}`,
+    ),
 };
 
 // Bookings API

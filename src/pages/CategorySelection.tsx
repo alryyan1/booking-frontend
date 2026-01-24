@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { categoriesAPI, calendarAPI } from "../services/api";
 import { getMonthName } from "../utils/dateHelpers";
 import { Category } from "../types";
+import { Alert } from "@mui/material";
 
 const CategorySelection = () => {
   const { monthId } = useParams<{ monthId: string }>();
@@ -10,6 +11,10 @@ const CategorySelection = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const currentYear = new Date().getFullYear();
+
+  const [categoryCounts, setCategoryCounts] = useState<Record<number, number>>(
+    {},
+  );
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -23,8 +28,25 @@ const CategorySelection = () => {
       }
     };
 
+    const fetchCounts = async () => {
+      if (monthId) {
+        try {
+          const response = await calendarAPI.getCategoryCounts(
+            monthId,
+            currentYear,
+          );
+          if (response.data.success) {
+            setCategoryCounts(response.data.counts);
+          }
+        } catch (error) {
+          console.error("Error fetching category counts:", error);
+        }
+      }
+    };
+
     fetchCategories();
-  }, []);
+    fetchCounts();
+  }, [monthId, currentYear]);
 
   const handleCategoryClick = (categoryId: number | string) => {
     navigate(`/month/${monthId}/category/${categoryId}`);
@@ -46,14 +68,18 @@ const CategorySelection = () => {
             {getMonthName(parseInt(monthId || "0"))} {currentYear}
           </h1>
           <p className="text-gray-600 mt-2">Select a category</p>
-        </div>
 
+          <Alert severity="info" sx={{ mt: 2, maxWidth: "fit-content" }}>
+            Note: The sum of category counts may exceed the monthly total
+            because some bookings contain items from multiple categories.
+          </Alert>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {categories.map((category) => (
             <div
               key={category.id}
               onClick={() => handleCategoryClick(category.id)}
-              className="bg-white rounded-lg shadow-md p-8 cursor-pointer hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-indigo-500"
+              className="bg-white rounded-lg shadow-md p-8 cursor-pointer hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-indigo-500 relative"
             >
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-800 mb-2">
@@ -62,6 +88,13 @@ const CategorySelection = () => {
                 <div className="text-xl text-gray-600" dir="rtl">
                   {category.name_ar}
                 </div>
+                {categoryCounts[category.id] > 0 && (
+                  <div className="mt-4">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                      {categoryCounts[category.id]} Bookings
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           ))}

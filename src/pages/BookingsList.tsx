@@ -37,6 +37,7 @@ import {
   LinearProgress,
   Autocomplete,
   Avatar,
+  TablePagination,
 } from "@mui/material";
 import {
   Plus,
@@ -58,6 +59,10 @@ import { Wallet } from "lucide-react";
 const BookingsList = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
+  const [total, setTotal] = useState(0);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -82,11 +87,6 @@ const BookingsList = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
     null,
   );
-
-  useEffect(() => {
-    fetchBookings();
-    fetchOptions();
-  }, [selectedCustomer, selectedItem, selectedAccessory, selectedCategory]);
 
   const fetchOptions = async () => {
     try {
@@ -114,15 +114,52 @@ const BookingsList = () => {
         accessory_id: selectedAccessory?.id,
         category_id: selectedCategory?.id,
         search: searchTerm || undefined, // Keep generic search if needed
+        page: page + 1, // Laravel uses 1-based pagination
+        per_page: rowsPerPage,
       };
       const response = await bookingsAPI.getAll(params);
-      setBookings(response.data.data || response.data || []);
+
+      const responseData = response.data;
+      // Handle both paginated and non-paginated responses (just in case)
+      if (responseData.data && Array.isArray(responseData.data)) {
+        setBookings(responseData.data);
+        setTotal(responseData.total || responseData.data.length);
+      } else if (Array.isArray(responseData)) {
+        setBookings(responseData);
+        setTotal(responseData.length);
+      } else {
+        setBookings([]);
+        setTotal(0);
+      }
     } catch (error) {
       console.error("Error fetching bookings:", error);
       toast.error("Failed to load bookings");
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchBookings();
+    fetchOptions();
+  }, [
+    selectedCustomer,
+    selectedItem,
+    selectedAccessory,
+    selectedCategory,
+    page,
+    rowsPerPage,
+  ]);
+
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
   };
 
   const handleSave = async (formData) => {
@@ -693,6 +730,16 @@ const BookingsList = () => {
           )}
         </TableBody>
       </Table>
+
+      <TablePagination
+        component="div"
+        count={total}
+        page={page}
+        onPageChange={handleChangePage}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        rowsPerPageOptions={[5, 15, 25, 50]}
+      />
 
       {/* Booking Form Modal/Overlay handled by component */}
       {showForm && (

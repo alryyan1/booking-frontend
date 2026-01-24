@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { calendarAPI, categoriesAPI } from '../services/api';
-import { getMonthName } from '../utils/dateHelpers';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { calendarAPI, categoriesAPI } from "../services/api";
+import { getMonthName } from "../utils/dateHelpers";
 
 const WeekSelection = () => {
   const { monthId, categoryId } = useParams();
@@ -15,15 +15,17 @@ const WeekSelection = () => {
     const fetchData = async () => {
       try {
         const [weeksResponse, categoryResponse] = await Promise.all([
-          calendarAPI.getWeeks(monthId, currentYear),
+          calendarAPI.getWeeks(monthId, currentYear, categoryId),
           categoriesAPI.getAll(),
         ]);
 
         setWeeks(weeksResponse.data.weeks);
-        const foundCategory = categoryResponse.data.find((c) => c.id === parseInt(categoryId));
+        const foundCategory = categoryResponse.data.data.find(
+          (c: any) => c.id === parseInt(categoryId || "0"),
+        );
         setCategory(foundCategory);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
@@ -49,7 +51,7 @@ const WeekSelection = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">
-            {getMonthName(parseInt(monthId))} {currentYear}
+            {getMonthName(parseInt(monthId || "0"))} {currentYear}
           </h1>
           {category && (
             <p className="text-xl text-gray-600 mt-2">
@@ -60,11 +62,11 @@ const WeekSelection = () => {
         </div>
 
         <div className="flex flex-wrap gap-4">
-          {weeks.map((week) => (
+          {weeks.map((week: any) => (
             <div
               key={week.week_number}
               onClick={() => handleWeekClick(week.week_number)}
-              className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-indigo-500 min-w-[200px]"
+              className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-indigo-500 min-w-[200px] relative"
             >
               <div className="text-center">
                 <div className="text-2xl font-bold text-indigo-600 mb-2">
@@ -73,6 +75,13 @@ const WeekSelection = () => {
                 <div className="text-sm text-gray-600">
                   {week.start_date_formatted} - {week.end_date_formatted}
                 </div>
+                {week.booking_count > 0 && (
+                  <div className="mt-2">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      {week.booking_count} Bookings
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -83,4 +92,3 @@ const WeekSelection = () => {
 };
 
 export default WeekSelection;
-

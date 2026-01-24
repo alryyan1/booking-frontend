@@ -1,12 +1,36 @@
-import { useNavigate } from 'react-router-dom';
-import { getMonthName } from '../utils/dateHelpers';
+import { useNavigate } from "react-router-dom";
+import { getMonthName } from "../utils/dateHelpers";
+import { useEffect, useState } from "react";
+import { calendarAPI } from "../services/api";
+import { Chip, CircularProgress } from "@mui/material";
 
 const MonthlyOverview = () => {
   const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const [monthlyCounts, setMonthlyCounts] = useState<Record<number, number>>(
+    {},
+  );
+  const [loading, setLoading] = useState(true);
 
-  const handleMonthClick = (monthId) => {
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const response = await calendarAPI.getMonthlyCounts(currentYear);
+        if (response.data.success) {
+          setMonthlyCounts(response.data.counts);
+        }
+      } catch (error) {
+        console.error("Error fetching monthly counts:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCounts();
+  }, [currentYear]);
+
+  const handleMonthClick = (monthId: number) => {
     navigate(`/month/${monthId}`);
   };
 
@@ -14,11 +38,15 @@ const MonthlyOverview = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Booking Management System</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Booking Management System
+          </h1>
         </div>
-        
+
         <div className="mb-4">
-          <h2 className="text-xl text-gray-700">Select a Month - {currentYear}</h2>
+          <h2 className="text-xl text-gray-700">
+            Select a Month - {currentYear}
+          </h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -26,13 +54,23 @@ const MonthlyOverview = () => {
             <div
               key={month}
               onClick={() => handleMonthClick(month)}
-              className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-indigo-500"
+              className="relative bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-indigo-500"
             >
               <div className="text-center">
-                <div className="text-4xl font-bold text-indigo-600 mb-2">{month}</div>
+                <div className="text-4xl font-bold text-indigo-600 mb-2">
+                  {month}
+                </div>
                 <div className="text-lg font-semibold text-gray-800">
                   {getMonthName(month)}
                 </div>
+                {!loading && monthlyCounts[month] > 0 && (
+                  <Chip
+                    label={`${monthlyCounts[month]} Bookings`}
+                    color="primary"
+                    size="small"
+                    sx={{ mt: 2, fontWeight: "bold" }}
+                  />
+                )}
               </div>
             </div>
           ))}
@@ -43,4 +81,3 @@ const MonthlyOverview = () => {
 };
 
 export default MonthlyOverview;
-
