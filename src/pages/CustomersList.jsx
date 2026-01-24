@@ -1,20 +1,14 @@
 import { useState, useEffect } from 'react';
 import { customersAPI } from '../services/api';
-import { User, Phone, Mail, MapPin, MoreVertical, Edit2, Trash2, Search, Plus } from 'lucide-react';
+import { User, Phone, Mail, MapPin, Edit2, Trash2, Search, Plus } from 'lucide-react';
+import CustomerDialog from '../components/CustomerDialog';
 
 const CustomersList = () => {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [showDialog, setShowDialog] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [formData, setFormData] = useState({
-    name: '',
-    phone_number: '',
-    email: '',
-    address: '',
-    notes: '',
-  });
 
   useEffect(() => {
     fetchCustomers();
@@ -32,43 +26,13 @@ const CustomersList = () => {
     }
   };
 
-  const handleOpenModal = (customer = null) => {
-    if (customer) {
-      setEditingCustomer(customer);
-      setFormData({
-        name: customer.name,
-        phone_number: customer.phone_number,
-        email: customer.email || '',
-        address: customer.address || '',
-        notes: customer.notes || '',
-      });
-    } else {
-      setEditingCustomer(null);
-      setFormData({
-        name: '',
-        phone_number: '',
-        email: '',
-        address: '',
-        notes: '',
-      });
-    }
-    setShowModal(true);
+  const handleOpenDialog = (customer = null) => {
+    setSelectedCustomer(customer);
+    setShowDialog(true);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingCustomer) {
-        await customersAPI.update(editingCustomer.id, formData);
-      } else {
-        await customersAPI.create(formData);
-      }
-      fetchCustomers();
-      setShowModal(false);
-    } catch (error) {
-      console.error('Error saving customer:', error);
-      alert(error.response?.data?.message || 'Error saving customer');
-    }
+  const handleSaveSuccess = () => {
+    fetchCustomers();
   };
 
   const handleDelete = async (id) => {
@@ -90,7 +54,7 @@ const CustomersList = () => {
           <p className="text-slate-500 mt-1">Manage your customer database and profiles</p>
         </div>
         <button
-          onClick={() => handleOpenModal()}
+          onClick={() => handleOpenDialog()}
           className="flex items-center space-x-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-semibold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 group"
         >
           <Plus className="w-5 h-5 transition-transform group-hover:rotate-90" />
@@ -144,7 +108,7 @@ const CustomersList = () => {
                 </div>
                 <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={() => handleOpenModal(customer)}
+                    onClick={() => handleOpenDialog(customer)}
                     className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                   >
                     <Edit2 className="w-4 h-4" />
@@ -191,108 +155,12 @@ const CustomersList = () => {
         )}
       </div>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-10 py-8 border-b border-slate-100 flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                  {editingCustomer ? 'Edit Profile' : 'New Customer'}
-                </h2>
-                <p className="text-slate-500 text-sm mt-1">Complete the information below</p>
-              </div>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                <Trash2 className="w-6 h-6" />
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-10 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="col-span-1">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2.5 ml-1">Full Name</label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                    <input
-                      type="text"
-                      required
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border-0 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white focus:shadow-inner transition-all"
-                      placeholder="Jane Doe"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="col-span-1">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2.5 ml-1">Phone Number</label>
-                  <div className="relative">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                    <input
-                      type="tel"
-                      required
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border-0 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white focus:shadow-inner transition-all"
-                      placeholder="+1 234 567 890"
-                      value={formData.phone_number}
-                      onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2.5 ml-1">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                  <input
-                    type="email"
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border-0 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white focus:shadow-inner transition-all"
-                    placeholder="jane@example.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2.5 ml-1">Physical Address</label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-5 w-5 h-5 text-slate-300" />
-                  <textarea
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border-0 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white focus:shadow-inner transition-all min-h-[100px]"
-                    placeholder="Street, City, Postal Code"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2.5 ml-1">Internal Notes</label>
-                <textarea
-                  className="w-full px-5 py-4 bg-slate-50 border-0 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white focus:shadow-inner transition-all min-h-[80px]"
-                  placeholder="Any specific preferences or history..."
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                />
-              </div>
-
-              <div className="flex space-x-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-8 py-5 border-2 border-slate-100 rounded-2xl text-slate-500 font-bold hover:bg-slate-50 hover:border-slate-200 transition-all"
-                >
-                  Discard
-                </button>
-                <button
-                  type="submit"
-                  className="flex-2 px-12 py-5 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 active:scale-95"
-                >
-                  {editingCustomer ? 'Update Profile' : 'Save Customer'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CustomerDialog
+        open={showDialog}
+        customer={selectedCustomer}
+        onClose={() => setShowDialog(false)}
+        onSave={handleSaveSuccess}
+      />
     </div>
   );
 };

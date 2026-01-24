@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { bookingsAPI } from '../services/api';
 import BookingForm from '../components/BookingForm';
+import { toast } from 'sonner';
 import {
   Box,
   Typography,
@@ -20,6 +21,7 @@ import {
   TableRow,
   Paper,
   Chip,
+  Stack,
   IconButton,
   Tooltip,
   CircularProgress
@@ -29,9 +31,15 @@ import {
   Search as SearchIcon,
   FilterList as FilterListIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon, // Added missing icon
-  Event as EventIcon
+  Delete as DeleteIcon,
+  Event as EventIcon,
+  LocalShipping as DeliveryIcon,
+  CheckCircle as SuccessIcon,
+  AssignmentReturn as ReturnIcon,
+  Notes as NotesIcon,
+  Inventory2 as ItemsIcon
 } from '@mui/icons-material';
+import DeliveryDialog from '../components/DeliveryDialog';
 
 const BookingsList = () => {
   const [bookings, setBookings] = useState([]);
@@ -40,6 +48,8 @@ const BookingsList = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
+  const [deliveryBooking, setDeliveryBooking] = useState(null);
 
   useEffect(() => {
     fetchBookings();
@@ -73,7 +83,7 @@ const BookingsList = () => {
       fetchBookings();
     } catch (error) {
       console.error('Error saving booking:', error);
-      alert('Error saving booking. Check console for details.');
+      toast.error('Error saving booking. Check console for details.');
     }
   };
 
@@ -87,6 +97,35 @@ const BookingsList = () => {
         fetchBookings();
       } catch (error) {
         console.error('Error deleting booking:', error);
+      }
+    }
+  };
+
+  const handleDeliver = (booking) => {
+    setDeliveryBooking(booking);
+    setShowDeliveryDialog(true);
+  };
+
+  const handleConfirmDelivery = async (id, data) => {
+    try {
+      await bookingsAPI.deliver(id, data);
+      toast.success('Booking marked as delivered!');
+      fetchBookings();
+    } catch (error) {
+      console.error('Error delivering booking:', error);
+      toast.error('Failed to mark as delivered.');
+    }
+  };
+
+  const handleReturnAction = async (id) => {
+    if (window.confirm('Mark this booking as returned?')) {
+      try {
+        await bookingsAPI.return(id);
+        toast.success('Booking marked as returned!');
+        fetchBookings();
+      } catch (error) {
+        console.error('Error returning booking:', error);
+        toast.error('Failed to mark as returned.');
       }
     }
   };
@@ -170,14 +209,12 @@ const BookingsList = () => {
             <Table>
               <TableHead sx={{ bgcolor: 'grey.50' }}>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>Invoice / Date</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Inv / Date</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Customer</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Items</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Return Date</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600 }}>Total</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600 }}>Deposit</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600 }}>Balance</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Items & Acc</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>Finances</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Delivery</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 600 }}>Action</TableCell>
                 </TableRow>
               </TableHead>
@@ -212,53 +249,70 @@ const BookingsList = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: 200 }}>
-                          {booking.items?.length > 0 ? (
-                            booking.items.map((item) => (
-                              <Chip 
-                                key={item.id} 
-                                label={item.name} 
-                                size="small" 
-                                variant="outlined" 
-                                sx={{ borderRadius: 1, fontWeight: 500, fontSize: '0.7rem' }} 
-                              />
-                            ))
-                          ) : (
-                            <Typography variant="caption" fontStyle="italic" color="text.secondary">No items</Typography>
+                        <Stack spacing={1}>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {booking.items?.map((item) => (
+                              <Chip key={item.id} label={item.name} size="small" icon={<ItemsIcon sx={{ fontSize: '0.8rem !important' }} />} sx={{ borderRadius: 1.5, fontSize: '0.7rem' }} />
+                            ))}
+                          </Box>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {booking.rented_accessories?.map((acc) => (
+                              <Chip key={acc.id} label={acc.name} size="small" variant="outlined" color="primary" sx={{ borderRadius: 1.5, fontSize: '0.7rem' }} />
+                            ))}
+                          </Box>
+                          {booking.notes && (
+                            <Tooltip title={booking.notes}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
+                                <NotesIcon sx={{ fontSize: '0.9rem' }} />
+                                <Typography variant="caption" noWrap sx={{ maxWidth: 120 }}>{booking.notes}</Typography>
+                              </Box>
+                            </Tooltip>
                           )}
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        {booking.return_date ? (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'primary.main', fontWeight: 500 }}>
-                                <EventIcon fontSize="small" />
-                                <Typography variant="body2">{new Date(booking.return_date).toLocaleDateString()}</Typography>
-                            </Box>
-                        ) : (
-                            <Typography variant="caption" color="text.secondary">Not set</Typography>
-                        )}
-                      </TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 600 }}>
-                        ${Number(booking.total_amount).toFixed(2)}
-                      </TableCell>
-                      <TableCell align="center" sx={{ color: 'text.secondary' }}>
-                        ${Number(booking.deposit_amount).toFixed(2)}
+                        </Stack>
                       </TableCell>
                       <TableCell align="center">
-                        <Typography fontWeight="bold" color={Number(booking.remaining_balance) > 0 ? 'error.main' : 'success.main'}>
-                            ${Number(booking.remaining_balance).toFixed(2)}
-                        </Typography>
+                        <Stack spacing={0.5}>
+                          <Typography variant="body2" color="text.secondary">Total: <strong>${Number(booking.total_amount).toFixed(2)}</strong></Typography>
+                          <Typography variant="body2" color="success.main">Paid: <strong>${Number(booking.deposit_amount).toFixed(2)}</strong></Typography>
+                          <Typography variant="body2" color="error.main">Due: <strong>${Number(booking.remaining_balance).toFixed(2)}</strong></Typography>
+                        </Stack>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Stack spacing={1} alignItems="center">
+                          {(() => {
+                            const total = parseFloat(booking.total_amount) || 0;
+                            const deposit = parseFloat(booking.deposit_amount) || 0;
+                            const balance = total - deposit;
+                            let status = 'pending';
+                            let color = 'error';
+                            if (balance <= 0 && total > 0) { status = 'paid'; color = 'success'; }
+                            else if (deposit > 0) { status = 'partial'; color = 'warning'; }
+                            return <Chip label={status} size="small" color={color} sx={{ textTransform: 'capitalize', fontWeight: 600, width: 70 }} />;
+                          })()}
+                        </Stack>
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={booking.payment_status}
-                          size="small"
-                          color={
-                            booking.payment_status === 'paid' ? 'success' :
-                            booking.payment_status === 'partial' ? 'warning' : 'error'
-                          }
-                          sx={{ textTransform: 'capitalize', fontWeight: 600 }}
-                        />
+                        <Stack direction="row" spacing={1}>
+                          <Tooltip title={booking.delivered ? `Delivered on ${new Date(booking.delivered_at).toLocaleDateString()}` : "Mark as Delivered"}>
+                            <IconButton 
+                              size="small" 
+                              color={booking.delivered ? "success" : "default"}
+                              onClick={() => !booking.delivered && handleDeliver(booking)}
+                            >
+                              <SuccessIcon sx={{ color: booking.delivered ? 'success.main' : 'grey.300' }} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title={booking.returned ? `Returned on ${new Date(booking.returned_at).toLocaleDateString()}` : "Mark as Returned"}>
+                            <IconButton 
+                              size="small" 
+                              color={booking.returned ? "error" : "default"}
+                              onClick={() => booking.delivered && !booking.returned && handleReturnAction(booking.id)}
+                              disabled={!booking.delivered}
+                            >
+                              <ReturnIcon sx={{ color: booking.returned ? 'error.main' : 'grey.300' }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
                       </TableCell>
                       <TableCell align="right">
                         <Tooltip title="Edit Booking">
@@ -292,6 +346,14 @@ const BookingsList = () => {
             setShowForm(false);
             setSelectedBooking(null);
           }}
+        />
+      )}
+      {showDeliveryDialog && (
+        <DeliveryDialog
+          open={showDeliveryDialog}
+          booking={deliveryBooking}
+          onClose={() => setShowDeliveryDialog(false)}
+          onConfirm={handleConfirmDelivery}
         />
       )}
     </Box>

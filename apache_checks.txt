@@ -1,0 +1,1 @@
+httpd.exe: Syntax error on line 521 of C:/xampp/apache/conf/httpd.conf: Syntax error on line 49 of C:/xampp/apache/conf/extra/httpd-vhosts.conf: Could not open configuration file C:/xampp/apache/conf/extra/httpd-vhosts-booking.conf: The system cannot find the file specified.  

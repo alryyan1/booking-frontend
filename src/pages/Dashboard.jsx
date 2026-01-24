@@ -152,33 +152,8 @@ const Dashboard = () => {
       </Grid>
 
       <Grid container spacing={3}>
-         {/* Bookings by Category */}
-         <Grid item xs={12} md={6}>
-            <Card elevation={0} sx={{ height: '100%', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-               <CardContent>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom>
-                     Bookings by Category
-                  </Typography>
-                  <Box sx={{ mt: 2 }}>
-                     {stats.bookings_by_category?.map((category) => (
-                        <Box key={category.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
-                           <Box>
-                              <Typography variant="subtitle1" fontWeight="600">{category.name_en}</Typography>
-                              <Typography variant="caption" color="text.secondary">{category.name_ar}</Typography>
-                           </Box>
-                           <Typography variant="h5" fontWeight="bold" color="primary.main">{category.count}</Typography>
-                        </Box>
-                     ))}
-                     {(!stats.bookings_by_category || stats.bookings_by_category.length === 0) && (
-                        <Typography color="text.secondary" align="center">No category data available</Typography>
-                     )}
-                  </Box>
-               </CardContent>
-            </Card>
-         </Grid>
-
-         {/* Bookings by Status */}
-         <Grid item xs={12} md={6}>
+         {/* Recent Bookings Table */}
+         <Grid item xs={12}>
             <Card elevation={0} sx={{ height: '100%', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
                <CardContent>
                   <Typography variant="h6" fontWeight="bold" gutterBottom>
@@ -228,7 +203,6 @@ const Dashboard = () => {
                            <TableRow>
                               <TableCell sx={{ fontWeight: 600 }}>Invoice</TableCell>
                               <TableCell sx={{ fontWeight: 600 }}>Attire</TableCell>
-                              <TableCell sx={{ fontWeight: 600 }}>Category</TableCell>
                               <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
                               <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                               <TableCell sx={{ fontWeight: 600 }}>Amount</TableCell>
@@ -237,7 +211,7 @@ const Dashboard = () => {
                         <TableBody>
                            {recentBookings.length === 0 ? (
                               <TableRow>
-                                 <TableCell colSpan={6} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                                 <TableCell colSpan={5} align="center" sx={{ py: 3, color: 'text.secondary' }}>
                                     No recent bookings found
                                  </TableCell>
                               </TableRow>
@@ -246,27 +220,30 @@ const Dashboard = () => {
                                  <TableRow key={booking.id} hover>
                                     <TableCell sx={{ fontWeight: 500 }}>{booking.invoice_number}</TableCell>
                                     <TableCell>{booking.attire_name}</TableCell>
-                                    <TableCell>
-                                       <Chip 
-                                          label={booking.category?.name_en || 'N/A'} 
-                                          size="small" 
-                                          sx={{ bgcolor: 'primary.50', color: 'primary.main', fontWeight: 500 }} 
-                                       />
-                                    </TableCell>
                                     <TableCell>{formatDate(booking.booking_date)}</TableCell>
                                     <TableCell>
-                                       <Chip
-                                          label={booking.payment_status}
-                                          size="small"
-                                          color={
-                                             booking.payment_status === 'paid' ? 'success' :
-                                             booking.payment_status === 'partial' ? 'warning' : 'error'
-                                          }
-                                          sx={{ textTransform: 'capitalize', fontWeight: 600 }}
-                                       />
-                                    </TableCell>
+                                        {(() => {
+                                           const total = parseFloat(booking.total_amount) || 0;
+                                           const deposit = parseFloat(booking.deposit_amount) || 0;
+                                           const balance = total - deposit;
+                                           
+                                           let status = 'pending';
+                                           let color = 'error';
+                                           
+                                           if (balance <= 0 && total > 0) {
+                                             status = 'paid';
+                                             color = 'success';
+                                           } else if (deposit > 0) {
+                                             status = 'partial';
+                                             color = 'warning';
+                                           }
+                                           return (
+                                             <Chip label={status} size="small" color={color} sx={{ textTransform: 'capitalize', fontWeight: 600 }} />
+                                           );
+                                        })()}
+                                     </TableCell>
                                     <TableCell sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                                       ${Number(booking.payment_amount).toFixed(2)}
+                                       ${Number(booking.total_amount || booking.payment_amount).toFixed(2)}
                                     </TableCell>
                                  </TableRow>
                               ))

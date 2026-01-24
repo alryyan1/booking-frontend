@@ -1,9 +1,9 @@
 import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+import { API_BASE_URL } from '../config/constants';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -76,6 +76,9 @@ export const bookingsAPI = {
   update: (id, data) => api.put(`/bookings/${id}`, data),
   delete: (id) => api.delete(`/bookings/${id}`),
   export: (params) => api.get('/bookings/export', { params, responseType: 'blob' }),
+  checkAvailability: (date) => api.get('/bookings/check-availability', { params: { date } }),
+  deliver: (id, data) => api.post(`/bookings/${id}/deliver`, data),
+  return: (id) => api.post(`/bookings/${id}/return`),
 };
 
 // Items API
@@ -94,6 +97,14 @@ export const customersAPI = {
   create: (data) => api.post('/customers', data),
   update: (id, data) => api.put(`/customers/${id}`, data),
   delete: (id) => api.delete(`/customers/${id}`),
+};
+
+// Accessories API
+export const accessoriesAPI = {
+  getAll: (params) => api.get('/accessories', { params }),
+  create: (data) => api.post('/accessories', data),
+  update: (id, data) => api.put(`/accessories/${id}`, data),
+  delete: (id) => api.delete(`/accessories/${id}`),
 };
 
 // Reports API

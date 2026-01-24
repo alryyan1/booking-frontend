@@ -7,7 +7,18 @@ const BookingCell = ({ booking, onClick }) => {
     );
   }
 
-  const getPaymentStatusColor = (status) => {
+  const getPaymentStatus = (booking) => {
+    const total = parseFloat(booking.total_amount) || 0;
+    const deposit = parseFloat(booking.deposit_amount) || 0;
+    const balance = parseFloat(booking.remaining_balance) || 0;
+    
+    if (balance <= 0 && total > 0) return 'paid';
+    if (deposit > 0) return 'partial';
+    return 'pending';
+  };
+
+  const getPaymentStatusColor = (booking) => {
+    const status = getPaymentStatus(booking);
     switch (status) {
       case 'paid':
         return 'bg-green-100 border-green-300';
@@ -20,7 +31,7 @@ const BookingCell = ({ booking, onClick }) => {
 
   return (
     <td
-      className={`border border-gray-300 p-2 h-20 cursor-pointer hover:opacity-80 ${getPaymentStatusColor(booking.payment_status)}`}
+      className={`border border-gray-300 p-2 h-20 cursor-pointer hover:opacity-80 ${getPaymentStatusColor(booking)}`}
       onClick={onClick}
     >
       <div className="text-xs font-semibold">{booking.invoice_number}</div>

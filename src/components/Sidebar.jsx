@@ -50,7 +50,7 @@ const Sidebar = ({ drawerWidth }) => {
 
   const adminItems = [
     { text: 'Users', icon: <GroupIcon />, path: '/users' },
-    { text: 'Inventory', icon: <InventoryIcon />, path: '/items' },
+    { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 
@@ -114,7 +114,7 @@ const Sidebar = ({ drawerWidth }) => {
         </Avatar>
         <Box>
            <Typography variant="h6" fontWeight="800" letterSpacing="-0.5px" sx={{ background: 'linear-gradient(45deg, #fff, #94a3b8)', backgroundClip: 'text', textFillColor: 'transparent', color: 'white' }}>
-            NEXUS
+            Jawda
           </Typography>
           <Typography variant="caption" color="grey.500" fontWeight="500" letterSpacing="1px" textTransform="uppercase">
             Booking System

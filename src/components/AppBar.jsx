@@ -14,7 +14,7 @@ const AppBar = ({ drawerWidth }) => {
     if (path === '/customers') return 'Client Management';
     if (path === '/reports') return 'Performance Reports';
     if (path === '/users') return 'Team & Access';
-    if (path === '/items') return 'Inventory Control';
+    if (path === '/inventory') return 'Inventory Control';
     if (path === '/settings') return 'System Settings';
     if (path.includes('/month/')) return 'Booking Calendar';
     return 'Booking System';

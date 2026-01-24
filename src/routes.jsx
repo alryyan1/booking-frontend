@@ -13,7 +13,7 @@ const DailyBookingTable = lazy(() => import('./pages/DailyBookingTable'));
 const BookingsList = lazy(() => import('./pages/BookingsList'));
 const CustomersList = lazy(() => import('./pages/CustomersList')); // Added CustomersList
 const UsersList = lazy(() => import('./pages/UsersList'));
-const ItemsList = lazy(() => import('./pages/ItemsList'));
+const Inventory = lazy(() => import('./pages/Inventory'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Reports = lazy(() => import('./pages/Reports'));
 
@@ -85,8 +85,8 @@ export const router = createBrowserRouter([
             element: <UsersList />,
           },
           {
-            path: '/items',
-            element: <ItemsList />,
+            path: '/inventory',
+            element: <Inventory />,
           },
           {
             path: '/settings',

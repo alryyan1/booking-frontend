@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { itemsAPI, customersAPI } from '../services/api';
-import QuickAddCustomer from './QuickAddCustomer';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { itemsAPI, customersAPI, accessoriesAPI, bookingsAPI } from '../services/api';
+import { toast } from 'sonner';
+import CustomerDialog from './CustomerDialog';
 import {
   Dialog,
   DialogTitle,
@@ -35,7 +37,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  useTheme
+  Stepper,
+  Step,
+  StepLabel,
+  useTheme,
+  Grid,
+  useMediaQuery,
+  CircularProgress
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -49,43 +57,71 @@ import {
   CalendarMonth as CalendarIcon,
   LocalOffer as TagIcon,
   Notes as NotesIcon,
-  AccessTime as AccessTimeIcon
+  AccessTime as AccessTimeIcon,
+  ArrowBack as BackIcon,
+  ArrowForward as ForwardIcon,
+  CreditCard as PaymentIcon
 } from '@mui/icons-material';
+
+const STEPS = ['Event Date & Customer', 'Select Items', 'Accessories', 'Review & Pay'];
 
 const BookingForm = ({ booking, onSave, onCancel, onDelete, bookingDate }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [activeStep, setActiveStep] = useState(0);
   
-  const [formData, setFormData] = useState({
-    invoice_number: '',
-    customer_id: '',
-    phone_number: '',
-    notes: '',
-    accessories: '',
-    payment_status: 'pending',
-    deposit_amount: 0,
-    total_amount: 0,
-    remaining_balance: 0,
-    event_date: bookingDate || '',
-    items: [],
+  const { control, handleSubmit, watch, setValue, getValues, reset, register, formState: { errors } } = useForm({
+    defaultValues: {
+      invoice_number: '',
+      customer_id: '',
+      phone_number: '',
+      notes: '',
+      accessories: [],
+      deposit_amount: 0,
+      total_amount: 0,
+      remaining_balance: 0,
+      payment_method: 'cash',
+      event_date: bookingDate || '',
+      items: [],
+    }
+  });
+
+  const { fields: itemsFields, append: appendItem, remove: removeItem, update: updateItem } = useFieldArray({
+    control,
+    name: "items"
   });
 
   const [inventory, setInventory] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [accessories, setAccessories] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [prepDays, setPrepDays] = useState(3); // Default to 3 days
   
-  // For Autocomplete state
+  // For Autocomplete display object
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [reservedItemIds, setReservedItemIds] = useState([]);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+
+  const watchedItems = watch("items");
+  const watchedAccessories = watch("accessories");
+  const watchedTotal = watch("total_amount");
+  const watchedDeposit = watch("deposit_amount");
+  const watchedEventDate = watch("event_date");
+  const watchedInvoice = watch("invoice_number");
+  const watchedCustomerId = watch("customer_id");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [itemsRes, customersRes] = await Promise.all([
+        const [itemsRes, customersRes, accessoriesRes] = await Promise.all([
           itemsAPI.getAll(),
           customersAPI.getAll(),
+          accessoriesAPI.getAll(),
         ]);
         setInventory(itemsRes.data);
         setCustomers(customersRes.data);
+        setAccessories(accessoriesRes.data);
       } catch (error) {
         console.error('Error fetching data:', error);
       }
@@ -96,153 +132,480 @@ const BookingForm = ({ booking, onSave, onCancel, onDelete, bookingDate }) => {
 
   useEffect(() => {
     if (booking) {
-      setFormData({
+      const formattedBooking = {
         invoice_number: booking.invoice_number || '',
         customer_id: booking.customer_id || '',
         phone_number: booking.customer?.phone_number || booking.phone_number || '',
         notes: booking.notes || '',
-        accessories: booking.accessories || '',
-        payment_status: booking.payment_status || 'pending',
+        accessories: booking.accessories || [],
         deposit_amount: parseFloat(booking.deposit_amount) || 0,
         total_amount: parseFloat(booking.total_amount) || 0,
         remaining_balance: parseFloat(booking.remaining_balance) || 0,
         event_date: booking.event_date || booking.booking_date || bookingDate || '',
         items: booking.items?.map(item => ({
-          id: item.id,
+          db_id: item.pivot?.id || null, // pivot id if needed
+          item_id: item.id, // actual inventory item id
           name: item.name,
           price: parseFloat(item.pivot?.price_at_booking || item.price),
           quantity: parseInt(item.pivot?.quantity || 1)
         })) || [],
-      });
+      };
+      reset(formattedBooking);
       if (booking.customer) {
         setSelectedCustomer(booking.customer);
       }
     }
-  }, [booking, bookingDate]);
+  }, [booking, bookingDate, reset]);
 
+  // Recalculate total amount whenever items change (but allow manual overwrite)
   useEffect(() => {
-    // Auto-calculate balance and payment status whenever total or deposit changes
-    const total = parseFloat(formData.total_amount) || 0;
-    const deposit = parseFloat(formData.deposit_amount) || 0;
+    const items = watchedItems || [];
+    const newTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const currentTotal = getValues('total_amount');
+    // Only auto-update if total is 0 or if we just added/removed an item and it matched the old calculated total
+    if (currentTotal === 0 || items.length > 0) {
+      setValue('total_amount', newTotal);
+    }
+  }, [watchedItems, setValue]);
+
+  // Fetch availability when date changes
+  useEffect(() => {
+    const checkAvailability = async () => {
+      if (watchedEventDate) {
+        setIsCheckingAvailability(true);
+        try {
+          const res = await bookingsAPI.checkAvailability(watchedEventDate);
+          setReservedItemIds(res.data.reserved_item_ids || []);
+          setPrepDays(res.data.prep_days || 3);
+        } catch (error) {
+          console.error('Error checking availability:', error);
+        } finally {
+          setIsCheckingAvailability(false);
+        }
+      }
+    };
+    checkAvailability();
+  }, [watchedEventDate]);
+
+  // Recalculate remaining balance whenever total or deposit changes
+  useEffect(() => {
+    const total = parseFloat(watchedTotal) || 0;
+    const deposit = parseFloat(watchedDeposit) || 0;
     const balance = total - deposit;
 
-    let status = 'pending';
-    if (balance <= 0 && total > 0) status = 'paid';
-    else if (deposit > 0) status = 'partial';
+    setValue('remaining_balance', balance);
+  }, [watchedTotal, watchedDeposit, setValue]);
 
-    setFormData(prev => {
-        // Prevent infinite loop if nothing changed
-        if (prev.remaining_balance === balance && prev.payment_status === status) return prev;
-        return {
-            ...prev,
-            remaining_balance: balance,
-            payment_status: status
-        };
-    });
-  }, [formData.total_amount, formData.deposit_amount]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: (name === 'deposit_amount' || name === 'total_amount') ? parseFloat(value) || 0 : value,
-    }));
-  };
-
-  const handleCustomerSelect = (event, newValue) => {
+  const handleCustomerSelect = (newValue) => {
     if (newValue) {
-      setFormData(prev => ({
-        ...prev,
-        customer_id: newValue.id,
-        phone_number: newValue.phone_number
-      }));
+      setValue('customer_id', newValue.id);
+      setValue('phone_number', newValue.phone_number);
       setSelectedCustomer(newValue);
     } else {
-        setFormData(prev => ({
-            ...prev,
-            customer_id: '',
-            phone_number: ''
-        }));
-        setSelectedCustomer(null);
+      setValue('customer_id', '');
+      setValue('phone_number', '');
+      setSelectedCustomer(null);
     }
   };
 
   const handleCustomerCreated = (newCustomer) => {
     setCustomers(prev => [...prev, newCustomer]);
-    handleCustomerSelect(null, newCustomer);
-    setShowQuickAddModal(false);
+    handleCustomerSelect(newCustomer);
+    setShowCustomerModal(false);
   };
 
-  const handleItemSelect = (event, newValue) => {
+  const handleNext = () => {
+    setActiveStep((prev) => prev + 1);
+  };
+
+  const handleBack = () => {
+    setActiveStep((prev) => prev - 1);
+  };
+
+  const handleItemSelect = (newValue) => {
     if (newValue) {
-        // Check if item already exists
-        const existingItemIndex = formData.items.findIndex(i => i.id === newValue.id);
-        
-        if (existingItemIndex !== -1) {
-            // Increase quantity if item already exists
-            setFormData(prev => ({
-                ...prev,
-                items: prev.items.map((item, idx) => 
-                    idx === existingItemIndex 
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                ),
-                total_amount: (parseFloat(prev.total_amount) || 0) + parseFloat(newValue.price)
-            }));
-        } else {
-            // Add new item with quantity 1
-            setFormData(prev => ({
-                ...prev,
-                items: [...prev.items, { 
-                    id: newValue.id, 
-                    name: newValue.name, 
-                    price: parseFloat(newValue.price),
-                    quantity: 1
-                }],
-                total_amount: (parseFloat(prev.total_amount) || 0) + parseFloat(newValue.price)
-            }));
-        }
+      const items = getValues("items");
+      const existingItemIndex = items.findIndex(i => i.item_id === newValue.id);
+      
+      if (existingItemIndex !== -1) {
+        const item = items[existingItemIndex];
+        updateItem(existingItemIndex, { ...item, quantity: item.quantity + 1 });
+      } else {
+        appendItem({ 
+          item_id: newValue.id, 
+          name: newValue.name, 
+          price: parseFloat(newValue.price),
+          quantity: 1
+        });
+      }
     }
   };
 
-  const removeItemFromBooking = (id) => {
-    const item = formData.items.find(i => i.id === id);
+  const removeItemFromBooking = (index) => {
+    removeItem(index);
+  };
+
+  const updateItemQty = (index, change) => {
+    const items = getValues("items");
+    const item = items[index];
     if (!item) return;
     
-    setFormData(prev => ({
-      ...prev,
-      items: prev.items.filter(i => i.id !== id),
-      total_amount: Math.max(0, (parseFloat(prev.total_amount) || 0) - (item.price * item.quantity))
-    }));
+    const newQuantity = item.quantity + change;
+    if (newQuantity < 1) return;
+    
+    updateItem(index, { ...item, quantity: newQuantity });
   };
 
-  const updateItemQuantity = (id, change) => {
-    setFormData(prev => {
-      const item = prev.items.find(i => i.id === id);
-      if (!item) return prev;
+  const handleAccessorySelect = (newValue) => {
+    if (newValue) {
+      const currentAccessories = getValues("accessories");
+      const exists = currentAccessories.some(acc => acc.id === newValue.id);
       
-      const newQuantity = item.quantity + change;
-      if (newQuantity < 1) return prev;
-      
-      const priceDiff = item.price * change;
-      
-      return {
-        ...prev,
-        items: prev.items.map(i => 
-          i.id === id ? { ...i, quantity: newQuantity } : i
-        ),
-        total_amount: Math.max(0, (parseFloat(prev.total_amount) || 0) + priceDiff)
-      };
-    });
+      if (!exists) {
+        setValue("accessories", [...currentAccessories, { id: newValue.id, name: newValue.name }]);
+      }
+    }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const removeAccessory = (id) => {
+    const currentAccessories = getValues("accessories");
+    setValue("accessories", currentAccessories.filter(acc => acc.id !== id));
+  };
+
+  const onFormSubmit = async (data) => {
     setLoading(true);
     try {
-      await onSave(formData);
+      const formattedData = {
+        ...data,
+        booking_date: data.event_date,
+        items: data.items.map(item => ({
+          id: item.item_id,
+          pivot_id: item.db_id,
+          quantity: item.quantity,
+          price: item.price
+        }))
+      };
+      await onSave(formattedData);
+      toast.success(booking ? 'Booking updated successfully!' : 'Reservation created successfully!');
+    } catch (error) {
+      console.error('Submission error:', error);
+      if (error.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        if (errors.items) {
+          toast.error(errors.items[0]);
+        } else {
+          toast.error('Failed to save booking. Please check the form.');
+        }
+      } else {
+        toast.error('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0: // Event Date & Customer
+        return (
+          <Stack spacing={4}>
+            <Box sx={{ p: 1 }}>
+              <Typography variant="subtitle1" fontWeight="700" gutterBottom>
+                1. Select Event Date & Invoice
+              </Typography>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    type="date"
+                    label="Event Date (Date of Occasion)"
+                    {...register("event_date", { required: "Date is required" })}
+                    error={!!errors.event_date}
+                    helperText={errors.event_date?.message}
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start"><CalendarIcon /></InputAdornment>,
+                      sx: { borderRadius: 3 }
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    label="Invoice Number (Manual)"
+                    {...register("invoice_number", { required: "Invoice number is required" })}
+                    error={!!errors.invoice_number}
+                    helperText={errors.invoice_number?.message}
+                    fullWidth
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">#</InputAdornment>,
+                      sx: { borderRadius: 3 }
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Divider />
+
+            <Box sx={{ p: 1 }}>
+              <Typography variant="subtitle1" fontWeight="700" gutterBottom>
+                2. Select or Add Customer
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Controller
+                  name="customer_id"
+                  control={control}
+                  rules={{ required: "Customer is required" }}
+                  render={({ field, fieldState: { error } }) => (
+                    <Autocomplete
+                      options={customers}
+                      getOptionLabel={(option) => option.name || ''}
+                      value={selectedCustomer}
+                      onChange={(_, newValue) => handleCustomerSelect(newValue)}
+                      fullWidth
+                      renderInput={(params) => (
+                        <TextField 
+                          {...params} 
+                          label="Customer Name / Phone" 
+                          error={!!error}
+                          helperText={error?.message}
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+                        />
+                      )}
+                      renderOption={(props, option) => (
+                        <li {...props} key={option.id}>
+                          <Box>
+                            <Typography variant="body1" fontWeight="600">{option.name}</Typography>
+                            <Typography variant="body2" color="text.secondary">{option.phone_number}</Typography>
+                          </Box>
+                        </li>
+                      )}
+                    />
+                  )}
+                />
+                <Button 
+                  variant="contained" 
+                  color="secondary"
+                  sx={{ borderRadius: 3, px: 3, height: 56 }}
+                  startIcon={<AddIcon />}
+                  onClick={() => setShowCustomerModal(true)}
+                >
+                  New
+                </Button>
+              </Box>
+              {selectedCustomer && (
+                <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
+                  Selected: <strong>{selectedCustomer.name}</strong> ({selectedCustomer.phone_number})
+                </Alert>
+              )}
+            </Box>
+          </Stack>
+        );
+
+      case 1: // Item Selection
+        return (
+          <Stack sx={{ mt: 2 }} spacing={4}>
+            <Box>
+              <Autocomplete
+                options={inventory}
+                getOptionLabel={(option) => `${option.name} ($${option.price})`}
+                loading={isCheckingAvailability}
+                onChange={(_, newValue) => {
+                  if (newValue && !reservedItemIds.includes(newValue.id)) {
+                    handleItemSelect(newValue);
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField 
+                    {...params} 
+                    label="Search Inventory" 
+                    placeholder={watchedEventDate ? "Search by name..." : "Please select event date first"}
+                    fullWidth
+                    disabled={!watchedEventDate}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {isCheckingAvailability ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+                  />
+                )}
+                renderOption={(props, option) => {
+                  const isReserved = reservedItemIds.includes(option.id);
+                  return (
+                    <li {...props} key={option.id} style={{ opacity: isReserved ? 0.5 : 1, pointerEvents: isReserved ? 'none' : 'auto' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                        <Box>
+                          <Typography variant="body1" fontWeight="600">{option.name}</Typography>
+                          <Typography variant="caption" color={isReserved ? "error.main" : "success.main"}>
+                            {isReserved ? "Reserved / In Prep" : "Available"}
+                          </Typography>
+                        </Box>
+                        <Chip label={`$${option.price}`} size="small" variant="outlined" />
+                      </Box>
+                    </li>
+                  );
+                }}
+              />
+            </Box>
+
+            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
+              <Table>
+                <TableHead sx={{ bgcolor: 'grey.50' }}>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Item</TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>Qty</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Price</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Total</TableCell>
+                    <TableCell width={50}></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {itemsFields.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                        No items added yet
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    itemsFields.map((item, index) => (
+                      <TableRow key={item.id}>
+                        <TableCell fontWeight="600">{item.name}</TableCell>
+                        <TableCell align="center">
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                            <IconButton size="small" onClick={() => updateItemQty(index, -1)} disabled={item.quantity <= 1}>
+                              <DeleteIcon fontSize="inherit" />
+                            </IconButton>
+                            <Typography variant="body2">{item.quantity}</Typography>
+                            <IconButton size="small" onClick={() => updateItemQty(index, 1)}>
+                              <AddIcon fontSize="inherit" />
+                            </IconButton>
+                          </Box>
+                        </TableCell>
+                        <TableCell align="right">${item.price}</TableCell>
+                        <TableCell align="right">${(item.price * item.quantity).toFixed(2)}</TableCell>
+                        <TableCell align="right">
+                          <IconButton size="small" color="error" onClick={() => removeItem(index)}>
+                            <CloseIcon fontSize="inherit" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Stack>
+        );
+
+      case 2: // Accessories & Notes
+        return (
+          <Stack spacing={4}>
+            <Box>
+              <Typography variant="subtitle1" fontWeight="700" gutterBottom>
+                4. Add Accessories (Optional)
+              </Typography>
+              <Autocomplete
+                options={accessories}
+                getOptionLabel={(option) => option.name || ''}
+                onChange={(_, newValue) => handleAccessorySelect(newValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Select Accessories" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} />
+                )}
+              />
+              <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {watchedAccessories?.map((acc) => (
+                  <Chip key={acc.id} label={acc.name} onDelete={() => removeAccessory(acc.id)} color="primary" variant="outlined" />
+                ))}
+              </Box>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle1" fontWeight="700" gutterBottom>
+                5. Additional Notes
+              </Typography>
+              <TextField
+                {...register("notes")}
+                multiline
+                rows={4}
+                fullWidth
+                placeholder="Enter any special instructions or notes here..."
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+              />
+            </Box>
+          </Stack>
+        );
+
+      case 3: // Review & Pay
+        return (
+          <Stack spacing={4}>
+            <Box sx={{ p: 4, bgcolor: 'primary.50', borderRadius: 4, textAlign: 'center' }}>
+              <Typography variant="overline" color="primary.main" fontWeight="bold">
+                Balance Due
+              </Typography>
+              <Typography variant="h2" fontWeight="900" color="primary.dark">
+                ${watch('remaining_balance')?.toFixed(2)}
+              </Typography>
+            </Box>
+
+            <Stack direction={'row'} gap={2} spacing={2}>
+                <TextField
+                  label="Total Amount"
+                  {...register("total_amount", { valueAsNumber: true })}
+                  type="number"
+                  fullWidth
+                  InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment>, sx: { borderRadius: 3 } }}
+                />
+                <TextField
+                  label="Deposit Paid"
+                  {...register("deposit_amount", { valueAsNumber: true })}
+                  type="number"
+                  fullWidth
+                  InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment>, sx: { borderRadius: 3 } }}
+                />
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel>Payment Method</InputLabel>
+                  <Controller
+                    name="payment_method"
+                    control={control}
+                    render={({ field }) => (
+                      <Select {...field} label="Payment Method" sx={{ borderRadius: 3 }}>
+                        <MenuItem value="cash">Cash</MenuItem>
+                        <MenuItem value="card">Card</MenuItem>
+                        <MenuItem value="transfer">Bank Transfer</MenuItem>
+                      </Select>
+                    )}
+                  />
+                </FormControl>
+            </Stack>
+            {/* Summary Review */}
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, bgcolor: 'grey.50' }}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>Summary</Typography>
+              <Stack spacing={1}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography>Customer</Typography>
+                  <Typography fontWeight="bold">{selectedCustomer?.name}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography>Event Date</Typography>
+                  <Typography fontWeight="bold">{watchedEventDate}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography>Items</Typography>
+                  <Typography fontWeight="bold">{watchedItems?.length || 0} items</Typography>
+                </Box>
+              </Stack>
+            </Paper>
+          </Stack>
+        );
+      default:
+        return null;
     }
   };
 
@@ -251,398 +614,85 @@ const BookingForm = ({ booking, onSave, onCancel, onDelete, bookingDate }) => {
       <Dialog 
         open={true} 
         onClose={onCancel} 
-        maxWidth="xl" 
+        fullScreen={isMobile}
+        maxWidth="md" 
         fullWidth
         PaperProps={{
-            sx: { 
-                borderRadius: 4, 
-                bgcolor: 'background.default',
-                height: '90vh',
-                boxShadow: '0 24px 48px rgba(0, 0, 0, 0.16)'
-            }
+            sx: { borderRadius: isMobile ? 0 : 4, height: isMobile ? '100%' : '85vh' }
         }}
       >
-        <DialogTitle sx={{ 
-            borderBottom: '2px solid', 
-            borderColor: 'divider', 
-            px: 4, 
-            py: 3, 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            bgcolor: 'background.paper',
-            background: 'linear-gradient(to bottom, rgba(255,255,255,1), rgba(250,250,250,1))'
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-             <Avatar variant="rounded" sx={{ bgcolor: booking ? 'warning.main' : 'primary.main', width: 40, height: 40 }}>
-               {booking ? <NotesIcon /> : <ReceiptIcon />}
-             </Avatar>
-             <Box>
-                 <Typography variant="h6" fontWeight="800" sx={{ lineHeight: 1.2 }}>
-                   {booking ? 'Modify Booking' : 'New Reservation'}
-                 </Typography>
-                 <Typography variant="caption" color="text.secondary">
-                    {booking ? `Editing record #${booking.id}` : 'Create a new client invoice'}
-                 </Typography>
-             </Box>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}> 
-            {booking && onDelete && (
-                <Button 
-                    onClick={onDelete} 
-                    color="error"
-                    size="small" 
-                    startIcon={<DeleteIcon />}
-                    sx={{ borderRadius: 2 }}
-                >
-                    Delete
-                </Button>
-            )}
-            <IconButton onClick={onCancel} size="small" sx={{ bgcolor: 'action.hover' }}>
-                <CloseIcon />
+        <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider', p: 3 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar sx={{ bgcolor: 'primary.main' }}>
+                <ReceiptIcon />
+              </Avatar>
+              <Box>
+                <Typography variant="h6" fontWeight="bold">
+                  {booking ? 'Edit Booking' : 'New Reservation'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Step {activeStep + 1} of {STEPS.length}: {STEPS[activeStep]}
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton onClick={onCancel} size="small">
+              <CloseIcon />
             </IconButton>
-          </Box>
+          </Stack>
+          
+          <Stepper activeStep={activeStep} sx={{ mt: 3, display: { xs: 'none', sm: 'flex' } }}>
+            {STEPS.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
         </DialogTitle>
 
-        <DialogContent sx={{ p: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, overflow: 'hidden' }}>
-           
-           {/* LEFT PANEL: Form Inputs */}
-           <Box sx={{ flex: 7, p: 4, overflowY: 'auto', bgcolor: 'background.paper' }}>
-              <form id="booking-form" onSubmit={handleSubmit}>
-                 <Stack spacing={4}>
-                    
-                    {/* Client Information */}
-                    <Card variant="outlined" sx={{ borderRadius: 3, overflow: 'visible', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)' }}>
-                        <Box sx={{ 
-                            p: 2.5, 
-                            borderBottom: '1px solid', 
-                            borderColor: 'divider', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1.5,
-                            bgcolor: 'grey.50'
-                        }}>
-                            <PersonIcon color="primary" fontSize="small" />
-                            <Typography variant="subtitle2" fontWeight="700">Client Details</Typography>
-                        </Box>
-                        <CardContent sx={{ p: 3 }}>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
-                                    <Box sx={{ flex: { xs: '1', sm: '0 0 33%' } }}>
-                                        <TextField
-                                            label="Invoice Number"
-                                            name="invoice_number"
-                                            value={formData.invoice_number}
-                                            onChange={handleChange}
-                                            fullWidth
-                                            size="small"
-                                            required
-                                            placeholder="e.g., INV-001"
-                                            InputProps={{
-                                                startAdornment: <InputAdornment position="start">#</InputAdornment>,
-                                                sx: { fontWeight: 'bold' }
-                                            }}
-                                        />
-                                    </Box>
-                                    <Box sx={{ flex: 1, display: 'flex', gap: 1 }}>
-                                        <Autocomplete
-                                            options={customers}
-                                            getOptionLabel={(option) => option.name || ''}
-                                            value={selectedCustomer}
-                                            onChange={handleCustomerSelect}
-                                            fullWidth
-                                            size="small"
-                                            renderInput={(params) => (
-                                                <TextField 
-                                                    {...params} 
-                                                    label="Select Customer" 
-                                                    placeholder="Search by name or phone..."
-                                                />
-                                            )}
-                                            renderOption={(props, option) => (
-                                                <li {...props} key={option.id}>
-                                                    <Box>
-                                                        <Typography variant="body2" fontWeight="600">{option.name}</Typography>
-                                                        <Typography variant="caption" color="text.secondary">{option.phone_number}</Typography>
-                                                    </Box>
-                                                </li>
-                                            )}
-                                        />
-                                        <Button 
-                                            variant="outlined" 
-                                            sx={{ minWidth: '40px', px: 0, borderRadius: 2 }}
-                                            onClick={() => setShowQuickAddModal(true)}
-                                        >
-                                            <AddIcon fontSize="small" />
-                                        </Button>
-                                    </Box>
-                                </Box>
-                                <TextField
-                                    type="date"
-                                    label="Event / Booking Date"
-                                    name="event_date"
-                                    value={formData.event_date}
-                                    onChange={handleChange}
-                                    fullWidth
-                                    size="small"
-                                    InputLabelProps={{ shrink: true }}
-                                    InputProps={{
-                                        startAdornment: <InputAdornment position="start"><CalendarIcon fontSize="small" /></InputAdornment>
-                                    }}
-                                />
-                            </Box>
-                        </CardContent>
-                    </Card>
-
-                    {/* Inventory Selection */}
-                    <Card variant="outlined" sx={{ borderRadius: 3, overflow: 'visible', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)' }}>
-                        <Box sx={{ 
-                            p: 2.5, 
-                            borderBottom: '1px solid', 
-                            borderColor: 'divider', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1.5,
-                            bgcolor: 'grey.50'
-                        }}>
-                            <ShoppingBagIcon color="secondary" fontSize="small" />
-                            <Typography variant="subtitle2" fontWeight="700">Attire & Items</Typography>
-                        </Box>
-                        <CardContent sx={{ p: 3 }}>
-                            <Autocomplete
-                                options={inventory}
-                                getOptionLabel={(option) => `${option.name} ($${option.price})` || ''}
-                                onChange={handleItemSelect}
-                                renderInput={(params) => (
-                                    <TextField 
-                                        {...params} 
-                                        label="Search Inventory" 
-                                        placeholder="Start typing to add items..."
-                                        fullWidth
-                                        InputProps={{
-                                            ...params.InputProps,
-                                            startAdornment: (
-                                                <>
-                                                    <InputAdornment position="start"><TagIcon color="action" /></InputAdornment>
-                                                    {params.InputProps.startAdornment}
-                                                </>
-                                            )
-                                        }}
-                                    />
-                                )}
-                                renderOption={(props, option) => (
-                                    <li {...props} key={option.id}>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                                            <Typography variant="body2" fontWeight="600">{option.name}</Typography>
-                                            <Chip label={`$${option.price}`} size="small" color="primary" variant="outlined" />
-                                        </Box>
-                                    </li>
-                                )}
-                            />
-
-                            <TableContainer component={Paper} variant="outlined" sx={{ mt: 3, borderRadius: 2, maxHeight: 300 }}>
-                                <Table size="small" stickyHeader>
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Item Name</TableCell>
-                                            <TableCell align="center">Quantity</TableCell>
-                                            <TableCell align="right">Price</TableCell>
-                                            <TableCell align="right">Subtotal</TableCell>
-                                            <TableCell align="right" width={50}></TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {formData.items.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                                                    <Typography variant="body2">No items selected yet.</Typography>
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : (
-                                            formData.items.map((item) => (
-                                                <TableRow key={item.id} hover>
-                                                    <TableCell sx={{ fontWeight: 600 }}>{item.name}</TableCell>
-                                                    <TableCell align="center">
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                                                            <IconButton
-                                                                size="small"
-                                                                onClick={() => updateItemQuantity(item.id, -1)}
-                                                                disabled={item.quantity <= 1}
-                                                                sx={{ bgcolor: 'action.hover' }}
-                                                            >
-                                                                <DeleteIcon fontSize="small" />
-                                                            </IconButton>
-                                                            <Typography variant="body2" fontWeight="700" sx={{ minWidth: '30px', textAlign: 'center' }}>
-                                                                {item.quantity}
-                                                            </Typography>
-                                                            <IconButton
-                                                                size="small"
-                                                                onClick={() => updateItemQuantity(item.id, 1)}
-                                                                sx={{ bgcolor: 'action.hover' }}
-                                                            >
-                                                                <AddIcon fontSize="small" />
-                                                            </IconButton>
-                                                        </Box>
-                                                    </TableCell>
-                                                    <TableCell align="right">${item.price.toFixed(2)}</TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                                                        ${(item.price * item.quantity).toFixed(2)}
-                                                    </TableCell>
-                                                    <TableCell align="right">
-                                                        <IconButton size="small" onClick={() => removeItemFromBooking(item.id)} color="error">
-                                                            <CloseIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-                        </CardContent>
-                    </Card>
-
-                    {/* Notes */}
-                    <Card variant="outlined" sx={{ borderRadius: 3 }}>
-                        <CardContent sx={{ p: 3 }}>
-                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                 <TextField
-                                     label="Internal Notes"
-                                     name="notes"
-                                     value={formData.notes}
-                                     onChange={handleChange}
-                                     fullWidth
-                                     multiline
-                                     rows={2}
-                                     size="small"
-                                     placeholder="Any special requests or details..."
-                                 />
-                                 <TextField
-                                     label="Accessories Included"
-                                     name="accessories"
-                                     value={formData.accessories}
-                                     onChange={handleChange}
-                                     fullWidth
-                                     size="small"
-                                     placeholder="Belts, pins, additional items..."
-                                 />
-                             </Box>
-                        </CardContent>
-                    </Card>
-
-                 </Stack>
-              </form>
-           </Box>
-
-           {/* RIGHT PANEL: Receipt Summary */}
-           <Box sx={{ 
-               flex: 3, 
-               bgcolor: 'background.default', 
-               borderLeft: { md: '1px solid' }, 
-               borderColor: 'divider',
-               display: 'flex',
-               flexDirection: 'column'
-           }}>
-               <Box sx={{ p: 3, flexGrow: 1, overflowY: 'auto' }}>
-                  <Paper elevation={0} sx={{ 
-                      p: 4, 
-                      borderRadius: 3, 
-                      border: '2px dashed',
-                      borderColor: 'primary.light', 
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      bgcolor: 'grey.50'
-                  }}>
-                      <Box>
-                          <Typography variant="overline" color="text.secondary" fontWeight="bold" letterSpacing={1}>
-                              RECEIPT SUMMARY
-                          </Typography>
-                          <Divider sx={{ my: 2 }} />
-                          
-                          <Stack spacing={2} sx={{ mb: 4 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                  <Typography variant="body2" color="text.secondary">Total Items</Typography>
-                                  <Typography variant="body2" fontWeight="600">{formData.items.length}</Typography>
-                              </Box>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <Typography variant="body2" color="text.secondary">Total Amount</Typography>
-                                  <TextField 
-                                      name="total_amount"
-                                      value={formData.total_amount}
-                                      onChange={handleChange}
-                                      type="number"
-                                      size="small"
-                                      InputProps={{ 
-                                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                                          sx: { fontSize: '1rem', fontWeight: 'bold', width: '120px', py: 0.5, textAlign: 'right' } 
-                                      }}
-                                  />
-                              </Box>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <Typography variant="body2" color="text.secondary">Deposit Paid</Typography>
-                                  <TextField 
-                                      name="deposit_amount"
-                                      value={formData.deposit_amount}
-                                      onChange={handleChange}
-                                      type="number"
-                                      size="small"
-                                      InputProps={{ 
-                                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                                          sx: { fontSize: '0.875rem', fontWeight: 'bold', width: '120px', py: 0.5 } 
-                                      }}
-                                  />
-                              </Box>
-                          </Stack>
-                      </Box>
-
-                      <Box sx={{ bgcolor: 'white', p: 3, borderRadius: 3, border: '2px solid', borderColor: 'primary.main', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
-                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mb: 1 }}>
-                               <Typography variant="body2" fontWeight="bold" color="text.primary">BALANCE DUE</Typography>
-                               <Typography variant="h4" fontWeight="900" color={formData.remaining_balance > 0 ? 'error.main' : 'success.main'}>
-                                   ${formData.remaining_balance.toFixed(2)}
-                               </Typography>
-                           </Box>
-                           
-                           <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                               <Typography variant="caption" color="text.secondary">Status:</Typography>
-                               <Chip 
-                                    label={formData.payment_status?.toUpperCase() || 'PENDING'} 
-                                    size="small" 
-                                    color={formData.payment_status === 'paid' ? 'success' : formData.payment_status === 'partial' ? 'warning' : 'default'} 
-                                    variant="soft" />
-                           </Box>
-                      </Box>
-                  </Paper>
-               </Box>
-
-               {/* Action Footer */}
-               <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', display: 'grid', gap: 2 }}>
-                   <Button 
-                       onClick={handleSubmit} 
-                       variant="contained" 
-                       size="large"
-                       fullWidth
-                       disabled={loading || formData.items.length === 0}
-                       startIcon={loading ? <AccessTimeIcon /> : <SaveIcon />}
-                       sx={{ borderRadius: 2, height: 48, fontWeight: 700 }}
-                   >
-                       {booking ? 'Update Booking' : 'Confirm Booking'}
-                   </Button>
-                   <Button onClick={onCancel} color="inherit" fullWidth sx={{ borderRadius: 2 }}>
-                       Cancel
-                   </Button>
-               </Box>
-           </Box>
-
+        <DialogContent sx={{ p: 4 }}>
+          {renderStepContent(activeStep)}
         </DialogContent>
+
+        <DialogActions sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Button onClick={onCancel} color="inherit" sx={{ mr: 'auto' }}>
+            Cancel
+          </Button>
+          
+          {activeStep > 0 && (
+            <Button onClick={handleBack} startIcon={<BackIcon />} sx={{ borderRadius: 2 }}>
+              Back
+            </Button>
+          )}
+          
+          {activeStep < STEPS.length - 1 ? (
+            <Button 
+              variant="contained" 
+              onClick={handleNext} 
+              endIcon={<ForwardIcon />}
+              disabled={(activeStep === 0 && (!watchedEventDate || !watchedCustomerId)) || (activeStep === 1 && watchedItems.length === 0)}
+              sx={{ borderRadius: 2, px: 4 }}
+            >
+              Next
+            </Button>
+          ) : (
+            <Button 
+              variant="contained" 
+              onClick={handleSubmit(onFormSubmit)} 
+              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+              disabled={loading}
+              sx={{ borderRadius: 2, px: 4, minWidth: 140 }}
+            >
+              {loading ? 'Saving...' : 'Complete Booking'}
+            </Button>
+          )}
+        </DialogActions>
       </Dialog>
       
-      <QuickAddCustomer 
-        isOpen={showQuickAddModal}
-        onClose={() => setShowQuickAddModal(false)}
-        onCustomerCreated={handleCustomerCreated}
+      <CustomerDialog 
+        open={showCustomerModal}
+        onClose={() => setShowCustomerModal(false)}
+        onSave={handleCustomerCreated}
       />
     </>
   );
