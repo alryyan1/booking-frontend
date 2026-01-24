@@ -11,7 +11,6 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [testResult, setTestResult] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -34,18 +33,6 @@ const Login = () => {
     }
   };
 
-  // Test function to check API connectivity
-  const testBookingsAPI = async () => {
-    try {
-      setTestResult('Testing API...');
-      const response = await bookingsAPI.getAll();
-      setTestResult(`✅ Success! Got ${response.data.data?.length || 0} bookings`);
-      console.log('Bookings response:', response.data);
-    } catch (err) {
-      setTestResult(`❌ Error: ${err.response?.data?.message || err.message}`);
-      console.error('Bookings error:', err);
-    }
-  };
 
   // Floating decorative elements
   const FloatingOrb = ({ delay = 0, duration = 4, className = "" }) => (
@@ -325,20 +312,7 @@ const Login = () => {
               </motion.button>
             </form>
 
-            {/* API Test Section */}
-            <div className="mt-6 p-4 bg-gray-50 rounded-2xl border border-gray-200">
-              <button
-                onClick={testBookingsAPI}
-                className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-full transition-all text-sm"
-              >
-                🧪 Test API Connection (Fetch Bookings)
-              </button>
-              {testResult && (
-                <div className="mt-3 p-3 bg-white rounded-xl border border-gray-200 text-sm font-mono text-gray-700">
-                  {testResult}
-                </div>
-              )}
-            </div>
+            {/*remove this*/}
 
             <div className="mt-8 text-center">
               <p className="text-gray-500 text-sm font-light">

@@ -40,7 +40,6 @@ import {
   Step,
   StepLabel,
   useTheme,
-  Grid,
   useMediaQuery,
   CircularProgress,
 } from "@mui/material";
@@ -74,7 +73,6 @@ interface BookingFormProps {
 interface FormValues {
   invoice_number: string;
   customer_id: string | number;
-  phone_number: string;
   notes: string;
   accessories: Accessory[];
   deposit_amount: number;
@@ -82,6 +80,7 @@ interface FormValues {
   remaining_balance: number;
   payment_method: string;
   event_date: string;
+  pickup_date: string;
   items: BookingItem[];
 }
 
@@ -109,7 +108,6 @@ const BookingForm: React.FC<BookingFormProps> = ({
     defaultValues: {
       invoice_number: "",
       customer_id: "",
-      phone_number: "",
       notes: "",
       accessories: [],
       deposit_amount: 0,
@@ -176,15 +174,15 @@ const BookingForm: React.FC<BookingFormProps> = ({
       const formattedBooking: FormValues = {
         invoice_number: booking.invoice_number || "",
         customer_id: booking.customer_id || "",
-        phone_number:
-          booking.customer?.phone_number || booking.phone_number || "",
         notes: booking.notes || "",
         accessories: booking.accessories || [],
         deposit_amount: parseFloat(booking.deposit_amount as any) || 0,
         total_amount: parseFloat(booking.total_amount as any) || 0,
         remaining_balance: parseFloat(booking.remaining_balance as any) || 0,
         event_date:
-          booking.event_date || booking.booking_date || bookingDate || "",
+          booking.event_date || booking.pickup_date || bookingDate || "",
+        pickup_date:
+          booking.pickup_date || booking.event_date || bookingDate || "",
         payment_method: booking.payment_method || "cash",
         items:
           booking.items?.map((item) => ({
@@ -248,11 +246,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const handleCustomerSelect = (newValue: Customer | null) => {
     if (newValue) {
       setValue("customer_id", newValue.id);
-      setValue("phone_number", newValue.phone_number);
       setSelectedCustomer(newValue);
     } else {
       setValue("customer_id", "");
-      setValue("phone_number", "");
       setSelectedCustomer(null);
     }
   };
@@ -333,7 +329,6 @@ const BookingForm: React.FC<BookingFormProps> = ({
     try {
       const formattedData = {
         ...data,
-        booking_date: data.event_date,
         items: data.items.map((item) => ({
           id: item.item_id,
           pivot_id: item.db_id,
@@ -371,10 +366,10 @@ const BookingForm: React.FC<BookingFormProps> = ({
           <Stack spacing={4}>
             <Box sx={{ p: 1 }}>
               <Typography variant="subtitle1" fontWeight="700" gutterBottom>
-                1. Select Event Date & Invoice
+                1. Select Dates & Invoice
               </Typography>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
+              <Stack spacing={3}>
+                <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
                   <TextField
                     type="date"
                     label="Event Date (Date of Occasion)"
@@ -394,25 +389,42 @@ const BookingForm: React.FC<BookingFormProps> = ({
                       sx: { borderRadius: 3 },
                     }}
                   />
-                </Grid>
-                <Grid item xs={12} md={6}>
                   <TextField
-                    label="Invoice Number (Manual)"
-                    {...register("invoice_number", {
-                      required: "Invoice number is required",
+                    type="date"
+                    label="موعد استلام (Pickup Date)"
+                    {...register("pickup_date", {
+                      required: "Pickup date is required",
                     })}
-                    error={!!errors.invoice_number}
-                    helperText={errors.invoice_number?.message}
+                    error={!!errors.pickup_date}
+                    helperText={errors.pickup_date?.message}
                     fullWidth
+                    InputLabelProps={{ shrink: true }}
                     InputProps={{
                       startAdornment: (
-                        <InputAdornment position="start">#</InputAdornment>
+                        <InputAdornment position="start">
+                          <CalendarIcon />
+                        </InputAdornment>
                       ),
                       sx: { borderRadius: 3 },
                     }}
                   />
-                </Grid>
-              </Grid>
+                </Stack>
+                <TextField
+                  label="Invoice Number (Manual)"
+                  {...register("invoice_number", {
+                    required: "Invoice number is required",
+                  })}
+                  error={!!errors.invoice_number}
+                  helperText={errors.invoice_number?.message}
+                  fullWidth
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">#</InputAdornment>
+                    ),
+                    sx: { borderRadius: 3 },
+                  }}
+                />
+              </Stack>
             </Box>
 
             <Divider />

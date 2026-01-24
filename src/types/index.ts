@@ -4,6 +4,7 @@ export interface Customer {
   phone_number: string;
   email?: string;
   address?: string;
+  role?: string;
 }
 
 export interface Item {
@@ -11,6 +12,15 @@ export interface Item {
   name: string;
   price: string | number;
   description?: string;
+  category_id?: number;
+  category?: Category;
+}
+
+export interface Category {
+  id: number;
+  name_en: string;
+  name_ar: string;
+  slug: string;
 }
 
 export interface Accessory {
@@ -38,6 +48,7 @@ export interface Booking {
   deposit_amount: string | number;
   total_amount: string | number;
   remaining_balance: string | number;
+  pickup_date: string;
   payment_method: string;
   delivered: boolean;
   delivered_at?: string;
@@ -47,8 +58,9 @@ export interface Booking {
   items?: any[]; // Replaced BookingItem[] with any[] temporarily if structure is complex
   accessories?: Accessory[];
   rented_accessories?: Accessory[];
-  attire_name?: string;
   payment_amount?: string | number;
+  user?: { id: number; name: string };
+  delivered_by_user?: { id: number; name: string };
 }
 
 export interface DashboardStats {

@@ -1,6 +1,13 @@
 import axios, { InternalAxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "../config/constants";
-import { Customer, Item, Accessory, Booking, DashboardStats } from "../types";
+import {
+  Customer,
+  Item,
+  Accessory,
+  Booking,
+  DashboardStats,
+  Category,
+} from "../types";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -83,6 +90,10 @@ export const bookingsAPI = {
     ),
   deliver: (id: number | string, data: any) =>
     api.post(`/bookings/${id}/deliver`, data),
+  pay: (
+    id: number | string,
+    data: { payment_amount: number; payment_method: string },
+  ) => api.post(`/bookings/${id}/pay`, data),
   return: (id: number | string) => api.post(`/bookings/${id}/return`),
 };
 
@@ -113,6 +124,13 @@ export const accessoriesAPI = {
   update: (id: number | string, data: any) =>
     api.put(`/accessories/${id}`, data),
   delete: (id: number | string) => api.delete(`/accessories/${id}`),
+};
+
+// Categories API
+export const categoriesAPI = {
+  getAll: (params?: any) =>
+    api.get<{ data: Category[] }>("/categories", { params }),
+  create: (data: any) => api.post("/categories", data),
 };
 
 // Reports API

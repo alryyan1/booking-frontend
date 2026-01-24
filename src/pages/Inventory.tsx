@@ -1,33 +1,49 @@
-import { useState, useEffect } from 'react';
-import { itemsAPI, accessoriesAPI } from '../services/api';
-import { 
-  Plus, 
-  Search, 
-  Pencil, 
-  Trash2, 
-  X, 
-  Save, 
-  Package, 
-  Tags, 
-  AlertCircle, 
-  Check, 
+import { useState, useEffect } from "react";
+import { itemsAPI, accessoriesAPI, categoriesAPI } from "../services/api";
+import { Category, Item, Accessory } from "../types";
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  X,
+  Save,
+  Package,
+  Tags,
+  AlertCircle,
+  Check,
   Loader2,
   TrendingUp,
-  LayoutGrid
-} from 'lucide-react';
+  LayoutGrid,
+  FolderOpen,
+} from "lucide-react";
+import { Stack } from "@mui/material";
 
 const Inventory = () => {
   const [activeTab, setActiveTab] = useState(0); // 0 = Items, 1 = Accessories
-  const [items, setItems] = useState([]);
-  const [accessories, setAccessories] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [items, setItems] = useState<Item[]>([]);
+  const [accessories, setAccessories] = useState<Accessory[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [currentItem, setCurrentItem] = useState(null);
-  const [formData, setFormData] = useState({ name: '', price: '' });
+  const [currentItem, setCurrentItem] = useState<{
+    id?: number;
+    type: string;
+  } | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    price: "",
+    category_id: "",
+  });
   const [loading, setLoading] = useState(false);
-  
+
   // Notification State
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [toast, setToast] = useState({
+    show: false,
+    message: "",
+    type: "success",
+  });
 
   useEffect(() => {
     fetchData();
@@ -35,33 +51,39 @@ const Inventory = () => {
 
   const fetchData = async () => {
     try {
-      const [itemsRes, accessoriesRes] = await Promise.all([
+      const [itemsRes, accessoriesRes, categoriesRes] = await Promise.all([
         itemsAPI.getAll(),
-        accessoriesAPI.getAll()
+        accessoriesAPI.getAll(),
+        categoriesAPI.getAll(),
       ]);
-      setItems(itemsRes.data);
-      setAccessories(accessoriesRes.data);
+      setItems(itemsRes.data.data || itemsRes.data || []);
+      setAccessories(accessoriesRes.data.data || accessoriesRes.data || []);
+      setCategories(categoriesRes.data.data || categoriesRes.data || []);
     } catch (error) {
-      console.error('Error fetching inventory:', error);
-      showToast('Failed to load inventory data', 'error');
+      console.error("Error fetching inventory:", error);
+      showToast("Failed to load inventory data", "error");
     }
   };
 
-  const showToast = (message, type = 'success') => {
+  const showToast = (
+    message: string,
+    type: "success" | "error" | "info" = "success",
+  ) => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast({ ...toast, show: false }), 3000);
   };
 
-  const handleOpenModal = (item = null, type = 'item') => {
+  const handleOpenModal = (item: any = null, type = "item") => {
     if (item) {
       setCurrentItem({ ...item, type });
-      setFormData({ 
-        name: item.name, 
-        price: type === 'item' ? item.price : '' 
+      setFormData({
+        name: item.name,
+        price: type === "item" ? item.price : "",
+        category_id: type === "item" ? item.category_id || "" : "",
       });
     } else {
       setCurrentItem({ type });
-      setFormData({ name: '', price: '' });
+      setFormData({ name: "", price: "", category_id: "" });
     }
     setModalOpen(true);
   };
@@ -69,143 +91,193 @@ const Inventory = () => {
   const handleCloseModal = () => {
     setModalOpen(false);
     setCurrentItem(null);
-    setFormData({ name: '', price: '' });
+    setFormData({ name: "", price: "", category_id: "" });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentItem) return;
     setLoading(true);
-    
+
     try {
-      const isItem = currentItem.type === 'item';
+      const isItem = currentItem.type === "item";
       const api = isItem ? itemsAPI : accessoriesAPI;
       const data = isItem ? formData : { name: formData.name };
 
       if (currentItem.id) {
         await api.update(currentItem.id, data);
-        showToast(`${isItem ? 'Item' : 'Accessory'} updated successfully`);
+        showToast(`${isItem ? "Item" : "Accessory"} updated successfully`);
       } else {
         await api.create(data);
-        showToast(`New ${isItem ? 'Item' : 'Accessory'} created successfully`);
+        showToast(`New ${isItem ? "Item" : "Accessory"} created successfully`);
       }
-      
+
       await fetchData();
       handleCloseModal();
     } catch (error) {
-      console.error('Error saving:', error);
-      showToast('Failed to save changes. Please try again.', 'error');
+      console.error("Error saving:", error);
+      showToast("Failed to save changes. Please try again.", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id, type) => {
-    showToast('Delete is disabled to preserve history.', 'info');
+  const handleDelete = async (id: number, type: string) => {
+    showToast("Delete is disabled to preserve history.", "info");
   };
 
-  const handleChange = (e) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const filteredItems = items.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = items.filter((item) => {
+    const matchesSearch = item.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory
+      ? item.category_id === selectedCategory
+      : true;
+    return matchesSearch && matchesCategory;
+  });
 
-  const filteredAccessories = accessories.filter(acc =>
-    acc.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredAccessories = accessories.filter((acc) =>
+    acc.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const currentData = activeTab === 0 ? filteredItems : filteredAccessories;
-  const currentType = activeTab === 0 ? 'item' : 'accessory';
+  const currentType = activeTab === 0 ? "item" : "accessory";
 
   // Stats for the top cards
   const stats = [
-    { 
-      label: 'Total Items', 
-      value: items.length, 
-      icon: <Package className="h-4 w-4 text-slate-500" />
+    {
+      label: "Total Items",
+      value: items.length,
+      icon: <Package className="h-4 w-4 text-slate-500" />,
     },
-    { 
-      label: 'Accessories', 
-      value: accessories.length, 
-      icon: <Tags className="h-4 w-4 text-slate-500" />
+    {
+      label: "Accessories",
+      value: accessories.length,
+      icon: <Tags className="h-4 w-4 text-slate-500" />,
     },
-    { 
-      label: 'Total Value', 
-      value: `$${items.reduce((sum, item) => sum + parseFloat(item.price || 0), 0).toFixed(2)}`, 
-      icon: <TrendingUp className="h-4 w-4 text-slate-500" />
-    }
+    {
+      label: "Categories",
+      value: categories.length,
+      icon: <FolderOpen className="h-4 w-4 text-slate-500" />,
+    },
+    {
+      label: "Total Value",
+      value: `$${items.reduce((sum: number, item: any) => sum + parseFloat(item.price || 0), 0).toFixed(2)}`,
+      icon: <TrendingUp className="h-4 w-4 text-slate-500" />,
+    },
   ];
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto min-h-screen bg-slate-50/50">
+    <div className="p-2 max-w-[1600px] mx-auto min-h-screen bg-slate-50/50">
       {/* Toast Notification */}
       {toast.show && (
-        <div className={`fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl shadow-2xl border animate-in slide-in-from-bottom-5 fade-in duration-300 flex items-center gap-3 ${
-          toast.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 
-          toast.type === 'info' ? 'bg-indigo-50 border-indigo-200 text-indigo-800' : 
-          'bg-white border-slate-200 text-slate-800'
-        }`}>
-          {toast.type === 'error' ? <AlertCircle className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+        <div
+          className={`fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl shadow-2xl border animate-in slide-in-from-bottom-5 fade-in duration-300 flex items-center gap-3 ${
+            toast.type === "error"
+              ? "bg-red-50 border-red-200 text-red-800"
+              : toast.type === "info"
+                ? "bg-indigo-50 border-indigo-200 text-indigo-800"
+                : "bg-white border-slate-200 text-slate-800"
+          }`}
+        >
+          {toast.type === "error" ? (
+            <AlertCircle className="h-4 w-4" />
+          ) : (
+            <Check className="h-4 w-4" />
+          )}
           <span className="text-sm font-medium">{toast.message}</span>
         </div>
       )}
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-1">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Inventory Management</h1>
-          <p className="text-slate-500 mt-1">Manage your catalog of items and accessories</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Inventory Management
+          </h1>
         </div>
         <button
           onClick={() => handleOpenModal(null, currentType)}
           className="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-slate-50 hover:bg-slate-900/90 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 transition-colors"
         >
           <Plus className="mr-2 h-4 w-4" />
-          Add {activeTab === 0 ? 'Item' : 'Accessory'}
+          Add {activeTab === 0 ? "Item" : "Accessory"}
         </button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3 mb-8">
-        {stats.map((stat, index) => (
-          <div key={index} className="rounded-xl border border-slate-200 bg-white text-slate-950 shadow-sm">
-            <div className="p-6 pt-6">
-              <div className="flex items-center justify-between space-y-0 pb-2">
-                <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                {stat.icon}
-              </div>
-              <div className="text-2xl font-bold">{stat.value}</div>
-            </div>
-          </div>
-        ))}
-      </div>
 
       {/* Main Content */}
-      <div className="rounded-xl border border-slate-200 bg-white text-slate-950 shadow-sm">
+      <div className="">
         {/* Tabs */}
         <div className="flex flex-col space-y-1.5 p-6 pb-0">
-          <div className="inline-flex h-10 items-center justify-center rounded-md bg-slate-100 p-1 text-slate-500 w-fit">
-            <button
-              onClick={() => setActiveTab(0)}
-              className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-                activeTab === 0 ? 'bg-white text-slate-950 shadow-sm' : 'hover:text-slate-950'
-              }`}
-            >
-              <Package className="mr-2 h-4 w-4" />
-              Items Catalog
-            </button>
-            <button
-              onClick={() => setActiveTab(1)}
-              className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-                activeTab === 1 ? 'bg-white text-slate-950 shadow-sm' : 'hover:text-slate-950'
-              }`}
-            >
-              <Tags className="mr-2 h-4 w-4" />
-              Accessories
-            </button>
+          <div className="inline-flex h-10 items-center justify-center rounded-md  p-1 text-slate-500 w-fit">
+            <Stack direction="row" spacing={2} alignItems={'center'} justifyContent={"space-between"}>
+              <div>
+                {" "}
+                <button
+                  onClick={() => setActiveTab(0)}
+                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                    activeTab === 0
+                      ? "bg-white text-slate-950 shadow-sm"
+                      : "hover:text-slate-950"
+                  }`}
+                >
+                  <Package className="mr-2 h-4 w-4" />
+                  Items Catalog
+                </button>
+                <button
+                  onClick={() => setActiveTab(1)}
+                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                    activeTab === 1
+                      ? "bg-white text-slate-950 shadow-sm"
+                      : "hover:text-slate-950"
+                  }`}
+                >
+                  <Tags className="mr-2 h-4 w-4" />
+                  Accessories
+                </button>
+              </div>
+              <div>
+                {activeTab === 0 && (
+                  <div className="px-6 py-4 flex flex-wrap gap-2 border-b border-slate-100 ">
+                    <button
+                      onClick={() => setSelectedCategory(null)}
+                      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${
+                        selectedCategory === null
+                          ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      All Categories
+                    </button>
+                    {categories.map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${
+                          selectedCategory === category.id
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                            : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                        }`}
+                      >
+                        {category.name_ar}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Stack>
           </div>
         </div>
+
+        {/* Categories Row */}
 
         {/* Search & Toolbar */}
         <div className="p-6 flex items-center justify-between gap-4">
@@ -213,15 +285,11 @@ const Inventory = () => {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
             <input
               type="text"
-              placeholder={`Search ${activeTab === 0 ? 'items' : 'accessories'}...`}
+              placeholder={`Search ${activeTab === 0 ? "items" : "accessories"}...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 pl-9 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             />
-          </div>
-          <div className="flex items-center gap-2 text-[13px] font-medium text-amber-700 bg-amber-50/50 px-3 py-1.5 rounded-full border border-amber-100">
-             <AlertCircle className="h-3.5 w-3.5" />
-             <span>Deletion restricted to maintain historical records</span>
           </div>
         </div>
 
@@ -230,63 +298,98 @@ const Inventory = () => {
           <table className="w-full caption-bottom text-sm">
             <thead className="[&_tr]:border-b bg-slate-50/50">
               <tr className="border-b transition-colors hover:bg-slate-50/50 data-[state=selected]:bg-slate-100">
-                <th className="h-12 px-4 text-left align-middle font-medium text-slate-500">Name</th>
+                <th className="h-12 px-4 text-left align-middle font-medium text-slate-500">
+                  Name
+                </th>
                 {activeTab === 0 && (
-                  <th className="h-12 px-4 text-right align-middle font-medium text-slate-500">Price</th>
+                  <>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-slate-500">
+                      Category
+                    </th>
+                    <th className="h-12 px-4 text-right align-middle font-medium text-slate-500">
+                      Price
+                    </th>
+                  </>
                 )}
-                <th className="h-12 px-4 text-right align-middle font-medium text-slate-500 w-[100px]">Actions</th>
+                <th className="h-12 px-4 text-right align-middle font-medium text-slate-500 w-[100px]">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="[&_tr]:border-b">
               {currentData.length === 0 ? (
                 <tr>
-                  <td colSpan={activeTab === 0 ? 3 : 2} className="p-4 align-middle text-center h-48">
+                  <td
+                    colSpan={activeTab === 0 ? 3 : 2}
+                    className="p-4 align-middle text-center h-48"
+                  >
                     <div className="flex flex-col items-center justify-center gap-2 text-slate-500">
                       <LayoutGrid className="h-12 w-12 text-slate-300" />
-                      <p className="text-lg font-medium text-slate-900">No results found</p>
+                      <p className="text-lg font-medium text-slate-900">
+                        No results found
+                      </p>
                       <p className="text-sm text-slate-500">
-                        {searchQuery ? `No matches for "${searchQuery}"` : "Get started by creating a new record"}
+                        {searchQuery
+                          ? `No matches for "${searchQuery}"`
+                          : "Get started by creating a new record"}
                       </p>
                     </div>
                   </td>
                 </tr>
               ) : (
                 currentData.map((row) => (
-                  <tr key={row.id} className="border-b transition-colors hover:bg-slate-50/50 data-[state=selected]:bg-slate-100">
+                  <tr
+                    key={row.id}
+                    className="border-b transition-colors hover:bg-slate-50/50 data-[state=selected]:bg-slate-100"
+                  >
                     <td className="p-4 align-middle font-medium">
                       <div className="flex items-center gap-3">
-                        <div className={`flex items-center justify-center h-9 w-9 rounded-lg border text-xs font-bold ${
-                          activeTab === 0 ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-purple-50 text-purple-700 border-purple-100'
-                        }`}>
-                          {row.name.charAt(0).toUpperCase()}
+                        <div
+                          className={`flex items-center justify-center h-9 w-9 rounded-lg border text-xs font-bold ${
+                            activeTab === 0
+                              ? "bg-indigo-50 text-indigo-700 border-indigo-100"
+                              : "bg-purple-50 text-purple-700 border-purple-100"
+                          }`}
+                        >
+                          {row.id}
                         </div>
                         {row.name}
                       </div>
                     </td>
                     {activeTab === 0 && (
-                      <td className="p-4 align-middle text-right">
-                        <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 border-transparent bg-slate-100 text-slate-900 shadow-sm hover:bg-slate-100/80">
-                           ${parseFloat(row.price).toFixed(2)}
-                        </div>
-                      </td>
+                      <>
+                        <td className="p-4 align-middle">
+                          <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                            {(row as Item).category?.name_ar || "Uncategorized"}
+                          </span>
+                        </td>
+                        <td className="p-4 align-middle text-right">
+                          <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 border-transparent bg-slate-100 text-slate-900 shadow-sm hover:bg-slate-100/80">
+                            $
+                            {parseFloat((row as Item).price as string).toFixed(
+                              2,
+                            )}
+                          </div>
+                        </td>
+                      </>
                     )}
                     <td className="p-4 align-middle text-right">
-                       <div className="flex justify-end gap-2">
-                        <button 
+                      <div className="flex justify-end gap-2">
+                        <button
                           onClick={() => handleOpenModal(row, currentType)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950"
                         >
                           <Pencil className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDelete(row.id, currentType)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-red-50 hover:text-red-600 cursor-not-allowed opacity-50"
                         >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Delete</span>
                         </button>
-                       </div>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -299,47 +402,80 @@ const Inventory = () => {
       {/* Custom Modal/Dialog Overlay */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-in fade-in duration-200">
-           <div className="relative w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-lg animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-              <div className="flex flex-col space-y-1.5 text-center sm:text-left mb-6">
-                <h2 className="text-lg font-semibold leading-none tracking-tight">
-                   {currentItem?.id ? 'Edit' : 'Add'} {currentType === 'item' ? 'Item' : 'Accessory'}
-                </h2>
-                <p className="text-sm text-slate-500">
-                  {currentItem?.id ? 'Make changes to the existing record details below.' : 'Create a new record in your inventory system.'}
-                </p>
-              </div>
-              
-              <button 
-                onClick={handleCloseModal}
-                className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2"
-              >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </button>
+          <div
+            className="relative w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-lg animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col space-y-1.5 text-center sm:text-left mb-6">
+              <h2 className="text-lg font-semibold leading-none tracking-tight">
+                {currentItem?.id ? "Edit" : "Add"}{" "}
+                {currentType === "item" ? "Item" : "Accessory"}
+              </h2>
+              <p className="text-sm text-slate-500">
+                {currentItem?.id
+                  ? "Make changes to the existing record details below."
+                  : "Create a new record in your inventory system."}
+              </p>
+            </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                 <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                       Name
+            <button
+              onClick={handleCloseModal}
+              className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </button>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Name
+                </label>
+                <input
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                  autoFocus
+                  placeholder={
+                    currentType === "item"
+                      ? "e.g., Luxury Wedding Dress"
+                      : "e.g., Pearl Veil"
+                  }
+                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
+                />
+              </div>
+
+              {currentType === "item" && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none">
+                      Category
                     </label>
-                    <input
-                      name="name"
-                      value={formData.name}
+                    <select
+                      name="category_id"
+                      value={formData.category_id}
                       onChange={handleChange}
                       required
-                      autoFocus
-                      placeholder={currentType === 'item' ? 'e.g., Luxury Wedding Dress' : 'e.g., Pearl Veil'}
-                      className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
-                    />
-                 </div>
+                      className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name_ar}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                 {currentType === 'item' && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                       Price
+                    <label className="text-sm font-medium leading-none">
+                      Price
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-2.5 text-slate-500">$</span>
+                      <span className="absolute left-3 top-2.5 text-slate-500">
+                        $
+                      </span>
                       <input
                         name="price"
                         type="number"
@@ -351,27 +487,28 @@ const Inventory = () => {
                       />
                     </div>
                   </div>
-                 )}
+                </>
+              )}
 
-                 <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4">
-                    <button
-                      type="button"
-                      onClick={handleCloseModal}
-                      className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 h-10 px-4 py-2 mt-2 sm:mt-0"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-slate-50 hover:bg-slate-900/90 h-10 px-4 py-2"
-                    >
-                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {loading ? 'Saving...' : 'Save Changes'}
-                    </button>
-                 </div>
-              </form>
-           </div>
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 h-10 px-4 py-2 mt-2 sm:mt-0"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-slate-50 hover:bg-slate-900/90 h-10 px-4 py-2"
+                >
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {loading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
