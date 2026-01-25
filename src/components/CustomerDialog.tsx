@@ -27,12 +27,12 @@ import {
 } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Customer } from "../types";
+import { Customer } from "@/types";
 
 interface CustomerDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (customer: Customer) => void;
+  onSuccess: (customer: Customer) => void;
   customer?: Customer | null;
 }
 
@@ -46,7 +46,7 @@ interface FormValues {
 const CustomerDialog: React.FC<CustomerDialogProps> = ({
   open,
   onClose,
-  onSave,
+  onSuccess,
   customer = null,
 }) => {
   const [serverError, setServerError] = useState<string | null>(null);
@@ -101,12 +101,13 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({
         toast.success(`Customer "${data.name}" added successfully!`);
       }
 
-      onSave(response.data.data || response.data);
+      onSuccess(response.data.data || response.data);
       handleClose();
     } catch (err: any) {
+      console.log(err, "err");
       const errorMsg = err.response?.data?.message || "Failed to save customer";
       setServerError(errorMsg);
-      toast.error(errorMsg);
+      // toast.error(errorMsg); // Handled by global interceptor
     }
   };
 

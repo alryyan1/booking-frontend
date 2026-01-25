@@ -52,7 +52,7 @@ import {
   FileText,
 } from "lucide-react";
 import dressIcon from "../assets/dress.png";
-import DeliveryDialog from "../components/DeliveryDialog";
+
 import PaymentDialog from "../components/PaymentDialog";
 import { Wallet } from "lucide-react";
 
@@ -66,8 +66,6 @@ const BookingsList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
-  const [deliveryBooking, setDeliveryBooking] = useState<Booking | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentBooking, setPaymentBooking] = useState<Booking | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -151,6 +149,29 @@ const BookingsList = () => {
     rowsPerPage,
   ]);
 
+  // Keyboard shortcut: + for new booking
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in an input, textarea, or select
+      const activeElement = document.activeElement;
+      const isInput =
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        activeElement instanceof HTMLSelectElement ||
+        activeElement?.getAttribute("contenteditable") === "true" ||
+        activeElement?.closest(".MuiAutocomplete-root"); // Also ignore MUI Autocomplete
+
+      if (e.key === "+" && !isInput) {
+        e.preventDefault();
+        setSelectedBooking(null);
+        setShowForm(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
   };
@@ -193,8 +214,9 @@ const BookingsList = () => {
   };
 
   const handleDeliver = (booking: Booking) => {
-    setDeliveryBooking(booking);
-    setShowDeliveryDialog(true);
+    if (window.confirm("Mark this booking as delivered?")) {
+      handleConfirmDelivery(booking.id, {});
+    }
   };
 
   const handlePay = (booking: Booking) => {
@@ -328,16 +350,40 @@ const BookingsList = () => {
             )}
           />
 
-          <Autocomplete
-            options={categoryOptions}
-            getOptionLabel={(option) => option.name_en}
-            value={selectedCategory}
-            onChange={(_, newValue) => setSelectedCategory(newValue)}
-            sx={{ width: 180 }}
-            renderInput={(params) => (
-              <TextField {...params} label="Filter by Category" size="small" />
-            )}
-          />
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              fontWeight="bold"
+            >
+              CATEGORIES:
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              <Chip
+                label="All"
+                size="small"
+                onClick={() => setSelectedCategory(null)}
+                color={selectedCategory === null ? "primary" : "default"}
+                variant={selectedCategory === null ? "filled" : "outlined"}
+                sx={{ borderRadius: 1.5, fontWeight: "600" }}
+              />
+              {categoryOptions.map((cat) => (
+                <Chip
+                  key={cat.id}
+                  label={cat.name_en}
+                  size="small"
+                  onClick={() => setSelectedCategory(cat)}
+                  color={
+                    selectedCategory?.id === cat.id ? "primary" : "default"
+                  }
+                  variant={
+                    selectedCategory?.id === cat.id ? "filled" : "outlined"
+                  }
+                  sx={{ borderRadius: 1.5, fontWeight: "600" }}
+                />
+              ))}
+            </Stack>
+          </Box>
 
           <Autocomplete
             options={accessoryOptions}
@@ -371,7 +417,7 @@ const BookingsList = () => {
         <TableHead sx={{ bgcolor: "grey.50" }}>
           <TableRow>
             <TableCell sx={{ fontWeight: 600 }}>Id</TableCell>
-            <TableCell sx={{ fontWeight: 600 }}>Inv / Date</TableCell>
+            <TableCell sx={{ fontWeight: 600 }}>Inv / Event Date</TableCell>
             <TableCell sx={{ fontWeight: 600 }}>Customer</TableCell>
             <TableCell sx={{ fontWeight: 600 }}>Items & Acc</TableCell>
             <TableCell align="center" sx={{ fontWeight: 600 }}>
@@ -379,6 +425,9 @@ const BookingsList = () => {
             </TableCell>
             <TableCell align="center" sx={{ fontWeight: 600 }}>
               Status
+            </TableCell>
+            <TableCell align="center" sx={{ fontWeight: 600 }}>
+              Pickup Date
             </TableCell>
             <TableCell align="center" sx={{ fontWeight: 600 }}>
               Delivery Date
@@ -409,12 +458,17 @@ const BookingsList = () => {
               <TableRow key={booking.id} hover>
                 <TableCell>{booking.id}</TableCell>
                 <TableCell>
-                  <Typography variant="body2" fontWeight="bold">
-                    {booking.invoice_number}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {dayjs(booking.pickup_date).format("DD/MM/YYYY")}
-                  </Typography>
+                  <Stack direction={"column"} alignItems={"center"}>
+                    <Chip
+                      label={dayjs(booking.event_date).format("DD/MM/YYYY")}
+                      size="small"
+                      color="error"
+                      variant="outlined"
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      Invoice No {booking.invoice_number}
+                    </Typography>
+                  </Stack>
                 </TableCell>
                 <TableCell>
                   <Typography
@@ -614,6 +668,9 @@ const BookingsList = () => {
                     );
                   })()}
                 </TableCell>
+                <TableCell align="center">
+                  {dayjs(booking.pickup_date).format("DD/MM/YYYY")}
+                </TableCell>
 
                 <TableCell align="center">
                   {booking.delivered && (
@@ -748,14 +805,7 @@ const BookingsList = () => {
           }}
         />
       )}
-      {showDeliveryDialog && (
-        <DeliveryDialog
-          open={showDeliveryDialog}
-          booking={deliveryBooking}
-          onClose={() => setShowDeliveryDialog(false)}
-          onConfirm={handleConfirmDelivery}
-        />
-      )}
+
       {showPaymentDialog && (
         <PaymentDialog
           open={showPaymentDialog}

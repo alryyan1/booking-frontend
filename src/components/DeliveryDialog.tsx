@@ -20,7 +20,7 @@ import {
   Paper,
 } from "@mui/material";
 import { Truck, CheckCircle2, Wallet } from "lucide-react";
-import { Booking } from "../types";
+import { Booking } from "@/types";
 import dayjs from "dayjs";
 
 interface DeliveryDialogProps {

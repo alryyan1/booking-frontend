@@ -20,7 +20,7 @@ import {
   Paper,
 } from "@mui/material";
 import { Wallet, CheckCircle2 } from "lucide-react";
-import { Booking } from "../types";
+import { Booking } from "@/types";
 
 interface PaymentDialogProps {
   open: boolean;

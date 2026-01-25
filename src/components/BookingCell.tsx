@@ -1,4 +1,4 @@
-import { Booking } from "../types";
+import { Booking } from "@/types";
 import React from "react";
 
 interface BookingCellProps {

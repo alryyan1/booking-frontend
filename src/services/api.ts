@@ -37,7 +37,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message =
+    let message =
       error.response?.data?.message ||
       error.message ||
       "An unexpected error occurred";
@@ -49,6 +49,14 @@ api.interceptors.response.use(
       window.location.href = "/login";
       // Optional: toast.error("Session expired. Please login again.");
     } else {
+      // Try to get specific validation error first
+      if (error.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        const firstKey = Object.keys(errors)[0];
+        if (firstKey && errors[firstKey]?.[0]) {
+          message = errors[firstKey][0];
+        }
+      }
       toast.error(message);
     }
     return Promise.reject(error);

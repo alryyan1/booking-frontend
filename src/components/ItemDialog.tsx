@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { itemsAPI, accessoriesAPI, categoriesAPI } from "../services/api";
-import { Category, Item, Accessory } from "../types";
+import { Category, Item, Accessory } from "@/types";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -22,7 +22,7 @@ import { Close as CloseIcon } from "@mui/icons-material";
 interface ItemDialogProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: (newItem: Item | Accessory, type: "item" | "accessory") => void;
+  onSuccess: (newItem: Item | Accessory, type?: "item" | "accessory") => void;
   type?: "item" | "accessory";
   initialData?: Item | Accessory | null;
 }
@@ -38,7 +38,7 @@ const ItemDialog: React.FC<ItemDialogProps> = ({
   const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
     name: "",
-    price: "",
+    price: "0",
     category_id: "",
   });
 
@@ -50,7 +50,7 @@ const ItemDialog: React.FC<ItemDialogProps> = ({
           name: initialData.name,
           price:
             type === "item"
-              ? (initialData as Item).price?.toString() || ""
+              ? (initialData as Item).price?.toString() || "0"
               : "",
           category_id:
             type === "item"
@@ -58,7 +58,7 @@ const ItemDialog: React.FC<ItemDialogProps> = ({
               : "",
         });
       } else {
-        setFormData({ name: "", price: "", category_id: "" });
+        setFormData({ name: "", price: "0", category_id: "" });
       }
     }
   }, [open, initialData, type]);
@@ -106,7 +106,7 @@ const ItemDialog: React.FC<ItemDialogProps> = ({
       onClose();
     } catch (error) {
       console.error("Error saving:", error);
-      toast.error("Failed to save. Please check the form.");
+      // toast.error("Failed to save. Please check the form.");
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,23 @@
+import { useState, useEffect } from "react";
+import {
+  Package,
+  Tags,
+  FolderOpen,
+  TrendingUp,
+  Plus,
+  Search,
+  LayoutGrid,
+  Pencil,
+  Trash2,
+  AlertCircle,
+  Check,
+} from "lucide-react";
+import { Stack } from "@mui/material";
 import ItemDialog from "../components/ItemDialog";
+import { itemsAPI, accessoriesAPI, categoriesAPI } from "../services/api";
+import { Item, Accessory, Category } from "@/types";
 
 const Inventory = () => {
-    // ... existing state ...
   const [activeTab, setActiveTab] = useState(0); // 0 = Items, 1 = Accessories
   const [items, setItems] = useState<Item[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
@@ -24,7 +40,7 @@ const Inventory = () => {
   // const [loading, setLoading] = useState(false); // Used in fetchData? No, fetching doesn't seem to use loading state explicitly in provided code snippet for table, only modal did. Check fetchData...
   // Actually fetchData does not use loading state in the provided code snippet (only setAccessories etc). The modal used it.
   // We can remove loading state if it was only for the modal.
-  
+
   // Notification State
   const [toast, setToast] = useState({
     show: false,
@@ -37,7 +53,6 @@ const Inventory = () => {
   }, []);
 
   const fetchData = async () => {
-      // ... existing fetchData ...
     try {
       const [itemsRes, accessoriesRes, categoriesRes] = await Promise.all([
         itemsAPI.getAll(),
@@ -63,7 +78,7 @@ const Inventory = () => {
 
   const handleOpenModal = (item: any = null, type = "item") => {
     if (item) {
-        // Just set the item, ItemDialog handles the rest
+      // Just set the item, ItemDialog handles the rest
       setCurrentItem({ ...item, type });
     } else {
       setCurrentItem({ type });
@@ -75,17 +90,17 @@ const Inventory = () => {
     setModalOpen(false);
     setCurrentItem(null);
   };
-  
+
   const handleSuccess = async (newItem: any, type: string) => {
-      await fetchData();
-      // Toast is handled in ItemDialog for success, but we can also do it here if we want global.
-      // ItemDialog does it.
+    await fetchData();
+    // Toast is handled in ItemDialog for success, but we can also do it here if we want global.
+    // ItemDialog does it.
   };
 
   const handleDelete = async (id: number, type: string) => {
     showToast("Delete is disabled to preserve history.", "info");
   };
-  
+
   // Removed handleChange, handleSubmit as they are in ItemDialog now
 
   const filteredItems = items.filter((item) => {
@@ -124,7 +139,7 @@ const Inventory = () => {
     },
     {
       label: "Total Value",
-      value: `$${items.reduce((sum: number, item: any) => sum + parseFloat(item.price || 0), 0).toFixed(2)}`,
+      value: `OMR ${items.reduce((sum: number, item: any) => sum + parseFloat(item.price || 0), 0).toFixed(2)}`,
       icon: <TrendingUp className="h-4 w-4 text-slate-500" />,
     },
   ];
@@ -326,7 +341,7 @@ const Inventory = () => {
                         </td>
                         <td className="p-4 align-middle text-right">
                           <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 border-transparent bg-slate-100 text-slate-900 shadow-sm hover:bg-slate-100/80">
-                            $
+                            OMR{" "}
                             {parseFloat((row as Item).price as string).toFixed(
                               2,
                             )}
@@ -369,9 +384,6 @@ const Inventory = () => {
         type={currentType as "item" | "accessory"}
         initialData={currentItem as Item | Accessory}
       />
-    </div>
-  );
-};
     </div>
   );
 };

@@ -256,30 +256,6 @@ const Login = () => {
                 </motion.div>
               </div>
 
-              <div className="flex items-center justify-between text-sm px-2">
-                <label className="flex items-center space-x-2 cursor-pointer group">
-                  <div className="relative flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="peer h-5 w-5 cursor-pointer appearance-none rounded-full border border-pink-300 transition-all checked:border-rose-500 checked:bg-rose-500 hover:border-rose-400" 
-                    />
-                    <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 transition-opacity peer-checked:opacity-100">
-                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
-                  </div>
-                  <span className="text-gray-500 group-hover:text-rose-600 transition-colors font-medium">
-                    Remember me
-                  </span>
-                </label>
-                <a 
-                  href="#" 
-                  className="font-semibold text-rose-500 hover:text-rose-600 transition-colors"
-                >
-                  Forgot password?
-                </a>
-              </div>
 
               <motion.button
                 whileHover={{ scale: 1.03, y: -2, boxShadow: "0 10px 25px -5px rgba(244, 63, 94, 0.4)" }}
@@ -304,17 +280,7 @@ const Login = () => {
 
             {/*remove this*/}
 
-            <div className="mt-8 text-center">
-              <p className="text-gray-500 text-sm font-light">
-                Don't have an account?{' '}
-                <a 
-                  href="#" 
-                  className="font-bold text-rose-500 hover:text-rose-600 hover:underline decoration-2 underline-offset-4 transition-all"
-                >
-                  Contact Administrator
-                </a>
-              </p>
-            </div>
+         
           </div>
         </motion.div>
       </div>

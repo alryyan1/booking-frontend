@@ -54,7 +54,7 @@ import {
   ArrowForward as ForwardIcon,
   Delete as DeleteIcon,
 } from "@mui/icons-material";
-import { Booking, Customer, Item, Accessory, BookingItem } from "../types";
+import { Booking, Customer, Item, Accessory, BookingItem } from "@/types";
 
 const STEPS = [
   "Event Date & Customer",
@@ -136,7 +136,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
-  const [prepDays, setPrepDays] = useState(3); // Default to 3 days
+  const [prepDays, setPrepDays] = useState(5); // Default to 5 days
 
   // For Autocomplete display object
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
@@ -233,7 +233,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
         try {
           const res = await bookingsAPI.checkAvailability(watchedEventDate);
           setReservedItemIds(res.data.reserved_item_ids || []);
-          setPrepDays(res.data.prep_days || 3);
+          setPrepDays(res.data.prep_days || 5);
         } catch (error) {
           console.error("Error checking availability:", error);
         } finally {
@@ -354,15 +354,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
       );
     } catch (error: any) {
       console.error("Submission error:", error);
-      if (error.response?.data?.errors) {
-        const errors = error.response.data.errors;
-        // Get the first error message from the object (handles nested keys like items.0.price)
-        const firstErrorKey = Object.keys(errors)[0];
-        const firstErrorMessage = errors[firstErrorKey][0];
-        toast.error(firstErrorMessage);
-      } else {
-        toast.error("An unexpected error occurred. Please try again.");
-      }
+      // Toast handled by global interceptor
     } finally {
       setLoading(false);
     }
@@ -626,7 +618,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                       </TableCell>
                     </TableRow>
                   ) : (
-                    itemsFields.map((item, index) => (
+                    itemsFields.map((item: BookingItem, index: number) => (
                       <TableRow key={item.id}>
                         <TableCell sx={{ fontWeight: "600" }}>
                           {item.name}
@@ -732,7 +724,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
       case 3: // Review & Pay
         return (
-          <Stack spacing={4}>
+          <Stack spacing={4} direction={"column"} gap={2}>
             <Box
               sx={{
                 p: 4,
