@@ -200,7 +200,6 @@ const BookingForm: React.FC<BookingFormProps> = ({
             item_id: item.id,
             name: item.name,
             price: parseFloat(item.price as any),
-            quantity: parseInt((item.quantity as any) || 1),
             id: item.id,
           })) || [],
       };
@@ -214,10 +213,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   // Recalculate total amount whenever items change (but allow manual overwrite)
   useEffect(() => {
     const items = watchedItems || [];
-    const newTotal = items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
-    );
+    const newTotal = items.reduce((sum, item) => sum + item.price, 0);
     const currentTotal = getValues("total_amount");
     // Only auto-update if total is 0 or if we just added/removed an item and it matched the old calculated total
     if (currentTotal === 0 || items.length > 0) {
@@ -281,35 +277,17 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
   const handleItemSelect = (newValue: Item | null) => {
     if (newValue) {
-      const items = getValues("items");
-      const existingItemIndex = items.findIndex(
-        (i) => i.item_id === newValue.id,
-      );
-
-      if (existingItemIndex !== -1) {
-        const item = items[existingItemIndex];
-        updateItem(existingItemIndex, { ...item, quantity: item.quantity + 1 });
-      } else {
+      const items = getValues("items") || [];
+      const exists = items.some((i) => i.item_id === newValue.id);
+      if (!exists) {
         appendItem({
           id: Date.now(), // Unique ID for FieldArray
           item_id: newValue.id,
           name: newValue.name,
           price: parseFloat(newValue.price as any),
-          quantity: 1,
         });
       }
     }
-  };
-
-  const updateItemQty = (index: number, change: number) => {
-    const items = getValues("items");
-    const item = items[index];
-    if (!item) return;
-
-    const newQuantity = item.quantity + change;
-    if (newQuantity < 1) return;
-
-    updateItem(index, { ...item, quantity: newQuantity });
   };
 
   const handleAccessorySelect = (newValue: Accessory | null) => {
@@ -342,7 +320,6 @@ const BookingForm: React.FC<BookingFormProps> = ({
         items: data.items.map((item) => ({
           id: item.item_id,
           pivot_id: item.db_id,
-          quantity: item.quantity,
           price: item.price,
         })),
       };
@@ -594,14 +571,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <TableHead sx={{ bgcolor: "grey.50" }}>
                   <TableRow>
                     <TableCell sx={{ fontWeight: "bold" }}>Item</TableCell>
-                    <TableCell align="center" sx={{ fontWeight: "bold" }}>
-                      Qty
-                    </TableCell>
                     <TableCell align="right" sx={{ fontWeight: "bold" }}>
                       Price
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
-                      Total
                     </TableCell>
                     <TableCell width={50}></TableCell>
                   </TableRow>
@@ -623,37 +594,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                         <TableCell sx={{ fontWeight: "600" }}>
                           {item.name}
                         </TableCell>
-                        <TableCell align="center">
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              gap: 1,
-                            }}
-                          >
-                            <IconButton
-                              size="small"
-                              onClick={() => updateItemQty(index, -1)}
-                              disabled={item.quantity <= 1}
-                            >
-                              <DeleteIcon fontSize="inherit" />
-                            </IconButton>
-                            <Typography variant="body2">
-                              {item.quantity}
-                            </Typography>
-                            <IconButton
-                              size="small"
-                              onClick={() => updateItemQty(index, 1)}
-                            >
-                              <AddIcon fontSize="inherit" />
-                            </IconButton>
-                          </Box>
-                        </TableCell>
                         <TableCell align="right">OMR {item.price}</TableCell>
-                        <TableCell align="right">
-                          OMR {(item.price * item.quantity).toFixed(2)}
-                        </TableCell>
                         <TableCell align="right">
                           <IconButton
                             size="small"

@@ -120,8 +120,8 @@ export const bookingsAPI = {
       "/bookings/check-availability",
       { params: { date } },
     ),
-  deliver: (id: number | string, data: any) =>
-    api.post(`/bookings/${id}/deliver`, data),
+  pickedUp: (id: number | string, data: any) =>
+    api.post(`/bookings/${id}/pickedup`, data),
   pay: (
     id: number | string,
     data: { payment_amount: number; payment_method: string },

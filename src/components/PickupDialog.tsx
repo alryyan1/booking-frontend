@@ -19,11 +19,11 @@ import {
   CircularProgress,
   Paper,
 } from "@mui/material";
-import { Truck, CheckCircle2, Wallet } from "lucide-react";
+import { CheckCircle2, PackageCheck } from "lucide-react";
 import { Booking } from "@/types";
 import dayjs from "dayjs";
 
-interface DeliveryDialogProps {
+interface PickupDialogProps {
   open: boolean;
   onClose: () => void;
   booking: Booking | null;
@@ -33,7 +33,7 @@ interface DeliveryDialogProps {
   ) => Promise<void>;
 }
 
-const DeliveryDialog: React.FC<DeliveryDialogProps> = ({
+const PickupDialog: React.FC<PickupDialogProps> = ({
   open,
   onClose,
   booking,
@@ -61,7 +61,7 @@ const DeliveryDialog: React.FC<DeliveryDialogProps> = ({
       });
       onClose();
     } catch (error) {
-      console.error("Error confirming delivery:", error);
+      console.error("Error confirming pickup:", error);
     } finally {
       setLoading(false);
     }
@@ -83,9 +83,9 @@ const DeliveryDialog: React.FC<DeliveryDialogProps> = ({
       PaperProps={{ sx: { borderRadius: 3 } }}
     >
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-        <Truck color="#1976d2" size={24} />
+        <PackageCheck color="#1976d2" size={24} />
         <Typography variant="h6" fontWeight="bold">
-          Confirm Delivery
+          Confirm Pickup
         </Typography>
       </DialogTitle>
 
@@ -108,7 +108,7 @@ const DeliveryDialog: React.FC<DeliveryDialogProps> = ({
                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                   <Typography variant="body2">Total Amount:</Typography>
                   <Typography variant="body2" fontWeight="bold">
-                    ${total.toFixed(2)}
+                    OMR {total.toFixed(2)}
                   </Typography>
                 </Box>
                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>
@@ -118,7 +118,7 @@ const DeliveryDialog: React.FC<DeliveryDialogProps> = ({
                     color="success.main"
                     fontWeight="bold"
                   >
-                    ${alreadyPaid.toFixed(2)}
+                    OMR {alreadyPaid.toFixed(2)}
                   </Typography>
                 </Box>
                 <Divider />
@@ -131,7 +131,7 @@ const DeliveryDialog: React.FC<DeliveryDialogProps> = ({
                     color="error.main"
                     fontWeight="bold"
                   >
-                    ${currentBalance.toFixed(2)}
+                    OMR {currentBalance.toFixed(2)}
                   </Typography>
                 </Box>
               </Stack>
@@ -150,7 +150,7 @@ const DeliveryDialog: React.FC<DeliveryDialogProps> = ({
               onChange={(e) => setPaymentReceived(Number(e.target.value))}
               InputProps={{
                 startAdornment: (
-                  <InputAdornment position="start">$</InputAdornment>
+                  <InputAdornment position="start">OMR</InputAdornment>
                 ),
                 sx: { borderRadius: 2 },
               }}
@@ -174,8 +174,8 @@ const DeliveryDialog: React.FC<DeliveryDialogProps> = ({
 
           {newBalance > 0 && (
             <Alert severity="warning" sx={{ borderRadius: 2 }}>
-              A balance of <strong>${newBalance.toFixed(2)}</strong> will remain
-              after this payment.
+              A balance of <strong>OMR {newBalance.toFixed(2)}</strong> will
+              remain after this payment.
             </Alert>
           )}
           {newBalance === 0 && paymentReceived > 0 && (
@@ -203,11 +203,11 @@ const DeliveryDialog: React.FC<DeliveryDialogProps> = ({
           }
           sx={{ borderRadius: 2, px: 3 }}
         >
-          Confirm & Mark Delivered
+          Confirm & Mark Picked Up
         </Button>
       </DialogActions>
     </Dialog>
   );
 };
 
-export default DeliveryDialog;
+export default PickupDialog;

@@ -38,6 +38,12 @@ import {
   Autocomplete,
   Avatar,
   TablePagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Divider,
+  Alert,
 } from "@mui/material";
 import {
   Plus,
@@ -50,6 +56,8 @@ import {
   CheckCircle2,
   RotateCcw,
   FileText,
+  CreditCard,
+  History,
 } from "lucide-react";
 import dressIcon from "../assets/dress.png";
 
@@ -69,6 +77,8 @@ const BookingsList = () => {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentBooking, setPaymentBooking] = useState<Booking | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [paymentHistoryBooking, setPaymentHistoryBooking] =
+    useState<Booking | null>(null);
 
   const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
   const [itemOptions, setItemOptions] = useState<Item[]>([]);
@@ -213,9 +223,9 @@ const BookingsList = () => {
     }
   };
 
-  const handleDeliver = (booking: Booking) => {
-    if (window.confirm("Mark this booking as delivered?")) {
-      handleConfirmDelivery(booking.id, {});
+  const handlePickedUp = (booking: Booking) => {
+    if (window.confirm("Mark this booking as picked up?")) {
+      handleConfirmPickedUp(booking.id, {});
     }
   };
 
@@ -244,18 +254,18 @@ const BookingsList = () => {
     }
   };
 
-  const handleConfirmDelivery = async (id, data) => {
+  const handleConfirmPickedUp = async (id, data) => {
     setActionLoading(id);
     try {
-      const response = await bookingsAPI.deliver(id, data);
+      const response = await bookingsAPI.pickedUp(id, data);
       const updatedBooking = response.data.data || response.data;
       setBookings((prev) =>
         prev.map((b) => (b.id === id ? updatedBooking : b)),
       );
-      toast.success("Booking marked as delivered!");
+      toast.success("Booking marked as picked up!");
     } catch (error) {
-      console.error("Error delivering booking:", error);
-      toast.error("Failed to mark as delivered.");
+      console.error("Error picking up booking:", error);
+      toast.error("Failed to mark as picked up.");
     } finally {
       setActionLoading(null);
     }
@@ -302,7 +312,7 @@ const BookingsList = () => {
         justifyContent={"space-between"}
         mb={2}
       >
-        <Stack direction="row" spacing={2} sx={{ flexGrow: 1 }}>
+        <Stack direction="row" spacing={2} alignItems={'center'} sx={{ flexGrow: 1 }}>
           <Autocomplete
             options={customerOptions}
             getOptionLabel={(option) => option.name}
@@ -351,26 +361,52 @@ const BookingsList = () => {
           />
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              fontWeight="bold"
-            >
-              CATEGORIES:
-            </Typography>
-            <Stack direction="row" spacing={1}>
+           
+            <Stack direction="row" spacing={1} a alignItems={'center'}>
+
               <Chip
                 label="All"
-                size="small"
+                size="medium"
                 onClick={() => setSelectedCategory(null)}
                 color={selectedCategory === null ? "primary" : "default"}
                 variant={selectedCategory === null ? "filled" : "outlined"}
-                sx={{ borderRadius: 1.5, fontWeight: "600" }}
+                sx={{ borderRadius: 1.5, fontWeight: "600",fontSize:'29px' }}
               />
               {categoryOptions.map((cat) => (
                 <Chip
                   key={cat.id}
-                  label={cat.name_en}
+                  label={
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        py: 0.5,
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: "1.5rem",
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {cat.name_en}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: "1.65rem",
+                          opacity: 0.8,
+                          lineHeight: 1,
+                          mt: 0.2,
+                        }}
+                      >
+                        {cat.name_ar}
+                      </Typography>
+                    </Box>
+                  }
                   size="small"
                   onClick={() => setSelectedCategory(cat)}
                   color={
@@ -379,13 +415,17 @@ const BookingsList = () => {
                   variant={
                     selectedCategory?.id === cat.id ? "filled" : "outlined"
                   }
-                  sx={{ borderRadius: 1.5, fontWeight: "600" }}
+                  sx={{
+                    borderRadius: 1.5,
+                    height: "auto",
+                    "& .MuiChip-label": { px: 2, py: 0.5 },
+                  }}
                 />
               ))}
             </Stack>
           </Box>
 
-          <Autocomplete
+          {/* <Autocomplete
             options={accessoryOptions}
             getOptionLabel={(option) => option.name}
             value={selectedAccessory}
@@ -394,7 +434,7 @@ const BookingsList = () => {
             renderInput={(params) => (
               <TextField {...params} label="Filter by Accessory" size="small" />
             )}
-          />
+          /> */}
         </Stack>
 
         <Button
@@ -430,9 +470,9 @@ const BookingsList = () => {
               Pickup Date
             </TableCell>
             <TableCell align="center" sx={{ fontWeight: 600 }}>
-              Delivery Date
+              Picked Up Date
             </TableCell>
-            <TableCell sx={{ fontWeight: 600 }}>Delivery</TableCell>
+            <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
             <TableCell align="right" sx={{ fontWeight: 600 }}>
               Action
             </TableCell>
@@ -595,17 +635,28 @@ const BookingsList = () => {
                               {balance > 0 ? `OMR ${balance} Left` : "Paid"}
                             </Typography>
                           </Box>
-                          <Tooltip title={`${progress.toFixed(0)}% Paid`}>
-                            <LinearProgress
-                              variant="determinate"
-                              value={Math.min(progress, 100)}
-                              color={color}
+                          <Tooltip title="Click to view payment history">
+                            <Box
+                              onClick={() => setPaymentHistoryBooking(booking)}
                               sx={{
-                                height: 6,
-                                borderRadius: 3,
-                                bgcolor: "grey.100",
+                                cursor: "pointer",
+                                "&:hover": { opacity: 0.8 },
                               }}
-                            />
+                            >
+                              <LinearProgress
+                                variant="determinate"
+                                value={Math.min(progress, 100)}
+                                color={color}
+                                sx={{
+                                  height: 8,
+                                  borderRadius: 4,
+                                  bgcolor: "#f1f5f9",
+                                  "& .MuiLinearProgress-bar": {
+                                    borderRadius: 4,
+                                  },
+                                }}
+                              />
+                            </Box>
                           </Tooltip>
                         </Box>
                       );
@@ -629,7 +680,7 @@ const BookingsList = () => {
                         />
                       );
                     }
-                    if (booking.delivered) {
+                    if (booking.is_picked_up) {
                       return (
                         <Chip
                           label="Out"
@@ -673,16 +724,16 @@ const BookingsList = () => {
                 </TableCell>
 
                 <TableCell align="center">
-                  {booking.delivered && (
+                  {booking.is_picked_up && (
                     <Tooltip
-                      title={`Delivered by: ${booking.delivered_by_user?.name || booking.user?.name || "Unknown"}`}
+                      title={`Picked Up by: ${booking.picked_up_by_user?.name || booking.user?.name || "Unknown"}`}
                     >
                       <Box>
                         <Typography variant="body2" fontWeight="600">
-                          {dayjs(booking.delivered_at).format("DD/MM/YYYY")}
+                          {dayjs(booking.pickedup_at).format("DD/MM/YYYY")}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {dayjs(booking.delivered_at).format("HH:mm")}
+                          {dayjs(booking.pickedup_at).format("HH:mm")}
                         </Typography>
                       </Box>
                     </Tooltip>
@@ -693,16 +744,16 @@ const BookingsList = () => {
                   <Stack direction="row" spacing={1}>
                     <Tooltip
                       title={
-                        booking.delivered
-                          ? `Delivered on ${dayjs(booking.delivered_at).format("DD/MM/YYYY")}`
-                          : "Mark as Delivered"
+                        booking.is_picked_up
+                          ? `Picked up on ${dayjs(booking.pickedup_at).format("DD/MM/YYYY")}`
+                          : "Mark as Picked Up"
                       }
                     >
                       <IconButton
                         size="small"
-                        color={booking.delivered ? "success" : "default"}
+                        color={booking.is_picked_up ? "success" : "default"}
                         onClick={() =>
-                          !booking.delivered && handleDeliver(booking)
+                          !booking.is_picked_up && handlePickedUp(booking)
                         }
                         disabled={actionLoading === booking.id}
                       >
@@ -711,7 +762,7 @@ const BookingsList = () => {
                         ) : (
                           <CheckCircle2
                             size={20}
-                            color={booking.delivered ? "#2e7d32" : "#bdbdbd"}
+                            color={booking.is_picked_up ? "#2e7d32" : "#bdbdbd"}
                           />
                         )}
                       </IconButton>
@@ -727,12 +778,12 @@ const BookingsList = () => {
                         size="small"
                         color={booking.returned ? "error" : "default"}
                         onClick={() =>
-                          booking.delivered &&
+                          booking.is_picked_up &&
                           !booking.returned &&
                           handleReturnAction(booking.id)
                         }
                         disabled={
-                          !booking.delivered || actionLoading === booking.id
+                          !booking.is_picked_up || actionLoading === booking.id
                         }
                       >
                         {actionLoading === booking.id ? (
@@ -796,7 +847,7 @@ const BookingsList = () => {
       {/* Booking Form Modal/Overlay handled by component */}
       {showForm && (
         <BookingForm
-          booking={selectedBooking}
+          booking={selectedBooking || undefined}
           onSave={handleSave}
           onDelete={selectedBooking ? handleDelete : undefined}
           onCancel={() => {
@@ -810,10 +861,140 @@ const BookingsList = () => {
         <PaymentDialog
           open={showPaymentDialog}
           onClose={() => setShowPaymentDialog(false)}
-          booking={paymentBooking}
+          booking={paymentBooking || undefined}
           onConfirm={handleRecordPayment}
         />
       )}
+      {/* Payment History Dialog */}
+      <Dialog
+        open={!!paymentHistoryBooking}
+        onClose={() => setPaymentHistoryBooking(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              <History size={20} />
+              <Typography variant="h6">Payment History</Typography>
+            </Stack>
+            <Chip
+              label={`Invoice #${paymentHistoryBooking?.invoice_number}`}
+              size="small"
+              color="primary"
+              variant="outlined"
+            />
+          </Stack>
+        </DialogTitle>
+        <DialogContent dividers>
+          {paymentHistoryBooking?.payments &&
+          paymentHistoryBooking.payments.length > 0 ? (
+            <Stack spacing={2} sx={{ py: 1 }}>
+              {paymentHistoryBooking.payments.map((payment, index) => (
+                <Card
+                  key={payment.id}
+                  variant="outlined"
+                  sx={{
+                    bgcolor:
+                      index === 0 ? "rgba(16, 185, 129, 0.05)" : "inherit",
+                    borderColor: index === 0 ? "success.light" : "divider",
+                  }}
+                >
+                  <CardContent sx={{ py: "12px !important" }}>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Stack spacing={0.5}>
+                        <Typography variant="subtitle2" fontWeight="700">
+                          OMR {payment.amount}
+                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Chip
+                            label={payment.payment_method}
+                            size="small"
+                            variant="outlined"
+                            sx={{
+                              height: 18,
+                              fontSize: "0.65rem",
+                              textTransform: "uppercase",
+                            }}
+                          />
+                          <Typography variant="caption" color="text.secondary">
+                            {dayjs(payment.created_at).format(
+                              "DD MMM YYYY, hh:mm A",
+                            )}
+                          </Typography>
+                        </Stack>
+                      </Stack>
+                      <Stack alignItems="flex-end">
+                        <Typography variant="caption" color="text.secondary">
+                          Recorded by
+                        </Typography>
+                        <Typography variant="caption" fontWeight="600">
+                          {payment.user?.name || "System"}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                    {payment.notes && (
+                      <Box
+                        sx={{
+                          mt: 1,
+                          p: 1,
+                          bgcolor: "grey.50",
+                          borderRadius: 1,
+                          borderLeft: "2px solid",
+                          borderColor: "grey.300",
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary">
+                          {payment.notes}
+                        </Typography>
+                      </Box>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+              <Divider />
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                sx={{ px: 1 }}
+              >
+                <Typography variant="body2" fontWeight="600">
+                  Total Paid:
+                </Typography>
+                <Typography
+                  variant="body2"
+                  fontWeight="700"
+                  color="success.main"
+                >
+                  OMR{" "}
+                  {paymentHistoryBooking?.payments.reduce(
+                    (sum, p) => sum + parseFloat(p.amount as string),
+                    0,
+                  )}
+                </Typography>
+              </Stack>
+            </Stack>
+          ) : (
+            <Box sx={{ py: 4, textAlign: "center" }}>
+              <Typography color="text.secondary">
+                No payment history found
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPaymentHistoryBooking(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

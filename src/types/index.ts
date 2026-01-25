@@ -34,7 +34,16 @@ export interface BookingItem {
   item_id: number;
   name: string;
   price: number;
-  quantity: number;
+}
+
+export interface Payment {
+  id: number;
+  booking_id: number;
+  amount: string | number;
+  payment_method: string;
+  notes?: string;
+  created_at: string;
+  user?: { id: number; name: string };
 }
 
 export interface Booking {
@@ -45,13 +54,14 @@ export interface Booking {
   notes?: string;
   event_date: string;
   booking_date: string;
-  deposit_amount: string | number;
+  deposit_amount: string | number; // This is actually total_paid from sum of payments in backend
   total_amount: string | number;
   remaining_balance: string | number;
   pickup_date: string;
   payment_method: string;
-  delivered: boolean;
-  delivered_at?: string;
+  is_picked_up: boolean;
+  pickedup_at?: string;
+  pickedup_by?: number;
   returned: boolean;
   returned_at?: string;
   customer?: Customer;
@@ -60,7 +70,8 @@ export interface Booking {
   rented_accessories?: Accessory[];
   payment_amount?: string | number;
   user?: { id: number; name: string };
-  delivered_by_user?: { id: number; name: string };
+  picked_up_by_user?: { id: number; name: string };
+  payments?: Payment[];
 }
 
 export interface DashboardStats {

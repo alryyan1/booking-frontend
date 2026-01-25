@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { bookingsAPI, calendarAPI, categoriesAPI } from "../services/api";
 import { getDaysInWeek, formatDate } from "../utils/dateHelpers";
+import { Booking, Category } from "../types";
+import { toast } from "sonner";
+import PaymentDialog from "../components/PaymentDialog";
 import BookingCell from "../components/BookingCell";
 import BookingForm from "../components/BookingForm";
-import { Booking, Category } from "../types";
 
 // Define local interfaces for component state
 interface WeekData {
@@ -27,6 +29,9 @@ const DailyBookingTable = () => {
   const [showForm, setShowForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentBooking, setPaymentBooking] = useState<Booking | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const currentYear = new Date().getFullYear();
@@ -101,16 +106,25 @@ const DailyBookingTable = () => {
   };
 
   const handleSave = async (formData: any) => {
-    if (selectedBooking) {
-      await bookingsAPI.update(selectedBooking.id, formData);
-    } else {
-      await bookingsAPI.create(formData);
+    try {
+      if (selectedBooking) {
+        await bookingsAPI.update(selectedBooking.id, formData);
+        toast.success("Booking updated!");
+      } else {
+        await bookingsAPI.create(formData);
+        toast.success("Booking created!");
+      }
+      refreshBookings();
+      setShowForm(false);
+      setSelectedBooking(null);
+      setSelectedDate(null);
+    } catch (error) {
+      console.error("Error saving booking:", error);
+      toast.error("Failed to save booking.");
     }
+  };
 
-    // Small delay to ensure backend has processed the request
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Refresh bookings
+  const refreshBookings = async () => {
     if (weekData) {
       const bookingsRes = await bookingsAPI.getAll({
         week_start: weekData.start_date,
@@ -127,10 +141,75 @@ const DailyBookingTable = () => {
       }));
       setBookings(normalizedBookings);
     }
+  };
 
-    setShowForm(false);
-    setSelectedBooking(null);
-    setSelectedDate(null);
+  const handlePickedUp = async (booking: Booking) => {
+    if (window.confirm("Mark this booking as picked up?")) {
+      setActionLoading(booking.id);
+      try {
+        const response = await bookingsAPI.pickedUp(booking.id, {});
+        const updatedBooking = response.data.data || response.data;
+        setBookings((prev) =>
+          prev.map((b) => (b.id === booking.id ? updatedBooking : b)),
+        );
+        toast.success("Booking marked as picked up!");
+      } catch (error) {
+        console.error("Error picking up booking:", error);
+        toast.error("Failed to mark as picked up.");
+      } finally {
+        setActionLoading(null);
+      }
+    }
+  };
+
+  const handlePay = (booking: Booking) => {
+    setPaymentBooking(booking);
+    setShowPaymentDialog(true);
+  };
+
+  const handleRecordPayment = async (
+    id: number,
+    data: { payment_amount: number; payment_method: string },
+  ) => {
+    setActionLoading(id);
+    try {
+      const response = await bookingsAPI.pay(id, data);
+      const updatedBooking = response.data.data || response.data;
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === id ? { ...updatedBooking, booking_date: b.booking_date } : b,
+        ),
+      );
+      toast.success("Payment recorded successfully!");
+    } catch (error) {
+      console.error("Error recording payment:", error);
+      toast.error("Failed to record payment.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReturnAction = async (id: number) => {
+    if (window.confirm("Mark this booking as returned?")) {
+      setActionLoading(id);
+      try {
+        const response = await bookingsAPI.return(id);
+        const updatedBooking = response.data.data || response.data;
+        setBookings((prev) =>
+          prev.map((b) =>
+            b.id === id
+              ? { ...updatedBooking, booking_date: b.booking_date }
+              : b,
+          ),
+        );
+        toast.success("Booking marked as returned!");
+      } catch (error) {
+        console.error("Error returning booking:", error);
+        toast.error("Failed to mark as returned.");
+      } finally {
+        setActionLoading(null);
+      }
+    }
   };
 
   const handleDelete = async () => {
@@ -140,25 +219,10 @@ const DailyBookingTable = () => {
       try {
         await bookingsAPI.delete(selectedBooking.id);
 
-        // Refresh bookings
-        if (weekData) {
-          const bookingsRes = await bookingsAPI.getAll({
-            week_start: weekData.start_date,
-            week_end: weekData.end_date,
-            category_id: categoryId,
-          });
-          const bookingsData = (bookingsRes.data as any).data || [];
-          const normalizedBookings = bookingsData.map((booking: any) => ({
-            ...booking,
-            booking_date: booking.event_date
-              ? booking.event_date.split("T")[0]
-              : booking.pickup_date?.split("T")[0],
-          }));
-          setBookings(normalizedBookings);
-        }
-
+        await refreshBookings();
         setShowForm(false);
         setSelectedBooking(null);
+        toast.success("Booking deleted.");
       } catch (error) {
         console.error("Error deleting booking:", error);
       }
@@ -282,6 +346,13 @@ const DailyBookingTable = () => {
                         key={booking.id}
                         booking={booking}
                         onClick={(e: any) => handleBookingClick(booking, e)}
+                        onPickedUp={handlePickedUp}
+                        onPay={handlePay}
+                        onReturn={handleReturnAction}
+                        onEdit={(b: Booking) =>
+                          handleBookingClick(b, {} as any)
+                        }
+                        actionLoading={actionLoading}
                       />
                     ))
                   )}
@@ -291,9 +362,17 @@ const DailyBookingTable = () => {
           })}
         </div>
 
+        {showPaymentDialog && (
+          <PaymentDialog
+            open={showPaymentDialog}
+            onClose={() => setShowPaymentDialog(false)}
+            booking={paymentBooking}
+            onConfirm={handleRecordPayment}
+          />
+        )}
         {showForm && (
           <BookingForm
-            booking={selectedBooking}
+            booking={selectedBooking || undefined}
             onSave={handleSave}
             onDelete={selectedBooking ? handleDelete : undefined}
             onCancel={() => {
