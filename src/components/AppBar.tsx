@@ -6,10 +6,10 @@ import {
   Typography,
   Box,
   Avatar,
-  Button,
+  TextField,
 } from "@mui/material";
-import { Search } from "lucide-react";
-import { useState, useRef } from "react";
+
+import { useState } from "react";
 import ItemAvailabilityDialog from "./ItemAvailabilityDialog";
 
 interface AppBarProps {
@@ -27,7 +27,6 @@ const AppBar = ({ drawerWidth }: AppBarProps) => {
   const location = useLocation();
   const [showAvailability, setShowAvailability] = useState(false);
   const [checkDate, setCheckDate] = useState<Date | null>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null);
 
   const getPageTitle = () => {
     const path = location.pathname;
@@ -68,12 +67,9 @@ const AppBar = ({ drawerWidth }: AppBarProps) => {
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           {/* Availability Checker */}
           <Box>
-            <input
+            <TextField
               type="date"
-              ref={dateInputRef}
-              style={{
-                display: "none",
-              }}
+              size="small"
               onChange={(e) => {
                 if (e.target.value) {
                   setCheckDate(new Date(e.target.value));
@@ -81,28 +77,21 @@ const AppBar = ({ drawerWidth }: AppBarProps) => {
                   e.target.value = "";
                 }
               }}
-            />
-            <Button
-              variant="outlined"
-              color="inherit"
-              onClick={() => dateInputRef.current?.showPicker()}
-              startIcon={<Search size={18} />}
               sx={{
-                borderColor: "divider",
-                color: "text.secondary",
-                textTransform: "none",
-                fontWeight: 600,
-                borderRadius: 2,
-                px: 2,
-                "&:hover": {
-                  borderColor: "text.primary",
-                  color: "text.primary",
-                  bgcolor: "transparent",
+                "& .MuiOutlinedInput-root": {
+                  color: "text.secondary",
+                  "& fieldset": {
+                    borderColor: "divider",
+                  },
+                  "&:hover fieldset": {
+                    borderColor: "text.primary",
+                  },
+                  "&.Mui-focused fieldset": {
+                    borderColor: "primary.main",
+                  },
                 },
               }}
-            >
-              Check Availability
-            </Button>
+            />
           </Box>
 
           <Box

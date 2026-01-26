@@ -12,7 +12,7 @@ import {
   AlertCircle,
   Check,
 } from "lucide-react";
-import { Stack } from "@mui/material";
+import { Stack, Typography } from "@mui/material";
 import ItemDialog from "../components/ItemDialog";
 import { itemsAPI, accessoriesAPI, categoriesAPI } from "../services/api";
 import { Item, Accessory, Category } from "@/types";
@@ -329,13 +329,15 @@ const Inventory = () => {
                         >
                           {row.id}
                         </div>
-                        {row.name}
+                        <div className="text-lg font-medium text-slate-900">
+                          {row.name}
+                        </div>
                       </div>
                     </td>
                     {activeTab === 0 && (
                       <>
                         <td className="p-4 align-middle">
-                          <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                          <span className="text-lg px-2 py-1 rounded-md">
                             {(row as Item).category?.name_ar || "Uncategorized"}
                           </span>
                         </td>

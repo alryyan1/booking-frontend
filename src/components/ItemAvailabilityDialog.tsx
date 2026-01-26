@@ -13,6 +13,7 @@ import {
   Stack,
   Divider,
   Paper,
+  TextField,
 } from "@mui/material";
 import { Calendar, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import dayjs from "dayjs";
@@ -36,20 +37,25 @@ const ItemAvailabilityDialog: React.FC<ItemAvailabilityDialogProps> = ({
   onClose,
   date,
 }) => {
+  const [selectedDate, setSelectedDate] = useState<Date | null>(date);
   const [items, setItems] = useState<ItemStatus[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (open && date) {
+    setSelectedDate(date);
+  }, [date]);
+
+  useEffect(() => {
+    if (open && selectedDate) {
       fetchAvailability();
     }
-  }, [open, date]);
+  }, [open, selectedDate]);
 
   const fetchAvailability = async () => {
-    if (!date) return;
+    if (!selectedDate) return;
     setLoading(true);
     try {
-      const formattedDate = dayjs(date).format("YYYY-MM-DD");
+      const formattedDate = dayjs(selectedDate).format("YYYY-MM-DD");
       const response = await bookingsAPI.checkAvailability(formattedDate);
       setItems(response.data.items);
     } catch (error) {
@@ -100,16 +106,34 @@ const ItemAvailabilityDialog: React.FC<ItemAvailabilityDialogProps> = ({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ pb: 1 }}>
-        <Stack direction="row" alignItems="center" spacing={1.5}>
-          <Calendar size={24} />
-          <Box>
-            <Typography variant="h6" fontWeight="bold">
-              Item Availability
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              for {dayjs(date).format("dddd, D MMMM YYYY")}
-            </Typography>
-          </Box>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          spacing={2}
+        >
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <Calendar size={24} />
+            <Box>
+              <Typography variant="h6" fontWeight="bold">
+                Item Availability
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                for {dayjs(selectedDate).format("dddd, D MMMM YYYY")}
+              </Typography>
+            </Box>
+          </Stack>
+          <TextField
+            type="date"
+            size="small"
+            value={selectedDate ? dayjs(selectedDate).format("YYYY-MM-DD") : ""}
+            onChange={(e) => {
+              if (e.target.value) {
+                setSelectedDate(new Date(e.target.value));
+              }
+            }}
+            sx={{ width: 150 }}
+          />
         </Stack>
       </DialogTitle>
       <DialogContent dividers>
