@@ -214,14 +214,7 @@ const UsersList = () => {
                           Username <SortIcon column="username" />
                         </div>
                       </th>
-                      <th
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={() => handleSort("email")}
-                      >
-                        <div className="flex items-center gap-1">
-                          Email <SortIcon column="email" />
-                        </div>
-                      </th>
+
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort("role")}
@@ -254,9 +247,7 @@ const UsersList = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {user.username}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {user.email}
-                          </td>
+
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
                               className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -276,12 +267,6 @@ const UsersList = () => {
                               className="text-indigo-600 hover:text-indigo-900 mr-3"
                             >
                               Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(user.id)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              Delete
                             </button>
                           </td>
                         </tr>

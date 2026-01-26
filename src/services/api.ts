@@ -116,16 +116,23 @@ export const bookingsAPI = {
   export: (params?: any) =>
     api.get("/bookings/export", { params, responseType: "blob" }),
   checkAvailability: (date: string) =>
-    api.get<{ reserved_item_ids: number[]; prep_days: number }>(
-      "/bookings/check-availability",
-      { params: { date } },
-    ),
+    api.get<{
+      items: {
+        id: number;
+        name: string;
+        category: string;
+        status: "available" | "reserved" | "preparation";
+      }[];
+      prep_days: number;
+    }>("/bookings/check-availability", { params: { date } }),
   pickedUp: (id: number | string, data: any) =>
     api.post(`/bookings/${id}/pickedup`, data),
   pay: (
     id: number | string,
     data: { payment_amount: number; payment_method: string },
   ) => api.post(`/bookings/${id}/pay`, data),
+  deletePayment: (bookingId: number | string, paymentId: number | string) =>
+    api.delete(`/bookings/${bookingId}/payments/${paymentId}`),
   return: (id: number | string) => api.post(`/bookings/${id}/return`),
 };
 

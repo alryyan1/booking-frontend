@@ -45,6 +45,7 @@ import {
   Divider,
   Alert,
 } from "@mui/material";
+import { createFilterOptions } from "@mui/material/Autocomplete";
 import {
   Plus,
   Search,
@@ -63,6 +64,10 @@ import dressIcon from "../assets/dress.png";
 
 import PaymentDialog from "../components/PaymentDialog";
 import { Wallet } from "lucide-react";
+
+const filterOptions = createFilterOptions<Customer>({
+  stringify: (option) => option.name + (option.phone_number || ""),
+});
 
 const BookingsList = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -254,6 +259,21 @@ const BookingsList = () => {
     }
   };
 
+  const handleDeletePayment = async (bookingId: number, paymentId: number) => {
+    try {
+      const response = await bookingsAPI.deletePayment(bookingId, paymentId);
+      const updatedBooking = response.data.data || response.data;
+      setBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? updatedBooking : b)),
+      );
+      toast.success("Payment deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting payment:", error);
+      toast.error("Failed to delete payment.");
+      throw error;
+    }
+  };
+
   const handleConfirmPickedUp = async (id, data) => {
     setActionLoading(id);
     try {
@@ -312,10 +332,16 @@ const BookingsList = () => {
         justifyContent={"space-between"}
         mb={2}
       >
-        <Stack direction="row" spacing={2} alignItems={'center'} sx={{ flexGrow: 1 }}>
+        <Stack
+          direction="row"
+          spacing={2}
+          alignItems={"center"}
+          sx={{ flexGrow: 1 }}
+        >
           <Autocomplete
             options={customerOptions}
             getOptionLabel={(option) => option.name}
+            filterOptions={filterOptions}
             value={selectedCustomer}
             onChange={(_, newValue) => setSelectedCustomer(newValue)}
             sx={{ width: 250 }}
@@ -361,16 +387,14 @@ const BookingsList = () => {
           />
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-           
-            <Stack direction="row" spacing={1} a alignItems={'center'}>
-
+            <Stack direction="row" spacing={1} a alignItems={"center"}>
               <Chip
                 label="All"
                 size="medium"
                 onClick={() => setSelectedCategory(null)}
                 color={selectedCategory === null ? "primary" : "default"}
                 variant={selectedCategory === null ? "filled" : "outlined"}
-                sx={{ borderRadius: 1.5, fontWeight: "600",fontSize:'29px' }}
+                sx={{ borderRadius: 1.5, fontWeight: "600", fontSize: "29px" }}
               />
               {categoryOptions.map((cat) => (
                 <Chip
@@ -388,7 +412,7 @@ const BookingsList = () => {
                         variant="body2"
                         sx={{
                           fontWeight: 700,
-                          fontSize: "1.5rem",
+                          fontSize: "1.1rem",
                           lineHeight: 1.2,
                         }}
                       >
@@ -397,7 +421,7 @@ const BookingsList = () => {
                       <Typography
                         variant="caption"
                         sx={{
-                          fontSize: "1.65rem",
+                          fontSize: "1.1rem",
                           opacity: 0.8,
                           lineHeight: 1,
                           mt: 0.2,
@@ -863,6 +887,7 @@ const BookingsList = () => {
           onClose={() => setShowPaymentDialog(false)}
           booking={paymentBooking || undefined}
           onConfirm={handleRecordPayment}
+          onDeletePayment={handleDeletePayment}
         />
       )}
       {/* Payment History Dialog */}

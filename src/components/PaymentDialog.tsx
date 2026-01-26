@@ -18,9 +18,12 @@ import {
   Alert,
   CircularProgress,
   Paper,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
-import { Wallet, CheckCircle2 } from "lucide-react";
+import { Wallet, CheckCircle2, Trash2 } from "lucide-react";
 import { Booking } from "@/types";
+import dayjs from "dayjs";
 
 interface PaymentDialogProps {
   open: boolean;
@@ -30,6 +33,7 @@ interface PaymentDialogProps {
     id: number,
     data: { payment_amount: number; payment_method: string },
   ) => Promise<void>;
+  onDeletePayment?: (bookingId: number, paymentId: number) => Promise<void>;
 }
 
 const PaymentDialog: React.FC<PaymentDialogProps> = ({
@@ -37,10 +41,12 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
   onClose,
   booking,
   onConfirm,
+  onDeletePayment,
 }) => {
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [loading, setLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState<number | null>(null);
 
   useEffect(() => {
     if (booking) {
@@ -63,6 +69,20 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
       console.error("Error recording payment:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (paymentId: number) => {
+    if (!booking || !onDeletePayment) return;
+    if (window.confirm("Are you sure you want to delete this payment?")) {
+      setDeleteLoading(paymentId);
+      try {
+        await onDeletePayment(booking.id, paymentId);
+      } catch (error) {
+        console.error("Error deleting payment:", error);
+      } finally {
+        setDeleteLoading(null);
+      }
     }
   };
 
@@ -136,6 +156,99 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
               </Stack>
             </Paper>
           </Box>
+
+          {/* Payment History List */}
+          {booking.payments && booking.payments.length > 0 && (
+            <Box>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                fontWeight="bold"
+                gutterBottom
+              >
+                PAYMENT HISTORY
+              </Typography>
+              <Stack spacing={1}>
+                {booking.payments.map((payment) => (
+                  <Paper
+                    key={payment.id}
+                    variant="outlined"
+                    sx={{ p: 1.5, borderRadius: 2 }}
+                  >
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Box>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          spacing={1}
+                          mb={0.5}
+                        >
+                          <Typography variant="subtitle2" fontWeight="bold">
+                            OMR {Number(payment.amount).toFixed(2)}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              px: 1,
+                              py: 0.25,
+                              bgcolor: "grey.100",
+                              borderRadius: 1,
+                              textTransform: "uppercase",
+                              fontSize: "0.65rem",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            {payment.payment_method}
+                          </Typography>
+                        </Stack>
+                        <Typography variant="caption" color="text.secondary">
+                          {dayjs(payment.created_at).format(
+                            "DD MMM YYYY, hh:mm A",
+                          )}
+                          {payment.user && ` • by ${payment.user.name}`}
+                        </Typography>
+                      </Box>
+                      {onDeletePayment && (
+                        <Tooltip title="Delete Payment">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDelete(payment.id)}
+                            disabled={deleteLoading === payment.id}
+                          >
+                            {deleteLoading === payment.id ? (
+                              <CircularProgress size={16} color="inherit" />
+                            ) : (
+                              <Trash2 size={16} />
+                            )}
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Stack>
+                    {payment.notes && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          display: "block",
+                          mt: 0.5,
+                          pl: 1,
+                          borderLeft: "2px solid",
+                          borderColor: "grey.300",
+                        }}
+                      >
+                        {payment.notes}
+                      </Typography>
+                    )}
+                  </Paper>
+                ))}
+              </Stack>
+            </Box>
+          )}
 
           <Box>
             <Typography variant="subtitle2" fontWeight="700" gutterBottom>

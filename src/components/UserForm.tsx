@@ -4,7 +4,7 @@ const UserForm = ({ user, onSave, onCancel }: any) => {
   const [formData, setFormData] = useState<any>({
     name: "",
     username: "",
-    email: "",
+
     password: "",
     role: "user",
   });
@@ -16,7 +16,7 @@ const UserForm = ({ user, onSave, onCancel }: any) => {
       setFormData({
         name: user.name || "",
         username: user.username || "",
-        email: user.email || "",
+
         password: "",
         role: user.role || "user",
       });
@@ -48,12 +48,6 @@ const UserForm = ({ user, onSave, onCancel }: any) => {
 
     if (!formData.username.trim()) {
       newErrors.username = "Username is required";
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Invalid email format";
     }
 
     if (!user && !formData.password) {
@@ -141,26 +135,6 @@ const UserForm = ({ user, onSave, onCancel }: any) => {
               />
               {errors.username && (
                 <p className="text-red-500 text-xs mt-1">{errors.username}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email *
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  errors.email
-                    ? "border-red-500 focus:ring-red-500"
-                    : "border-gray-300 focus:ring-indigo-500"
-                }`}
-              />
-              {errors.email && (
-                <p className="text-red-500 text-xs mt-1">{errors.email}</p>
               )}
             </div>
 
