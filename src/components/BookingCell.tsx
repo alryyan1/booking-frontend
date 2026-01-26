@@ -1,5 +1,11 @@
 import { Booking } from "@/types";
-import { Divider, Tooltip, IconButton, CircularProgress } from "@mui/material";
+import {
+  Divider,
+  Tooltip,
+  IconButton,
+  CircularProgress,
+  Typography,
+} from "@mui/material";
 import dayjs from "dayjs";
 import React from "react";
 import {
@@ -21,6 +27,7 @@ interface BookingCellProps {
   onPay?: (booking: Booking) => void;
   onEdit?: (booking: Booking) => void;
   actionLoading?: number | null;
+  onDragStart?: (e: React.DragEvent, booking: Booking) => void;
 }
 
 const BookingCell = ({
@@ -31,6 +38,7 @@ const BookingCell = ({
   onPay,
   onEdit,
   actionLoading,
+  onDragStart,
 }: BookingCellProps) => {
   if (!booking) return null;
 
@@ -77,6 +85,8 @@ const BookingCell = ({
     <div
       className={`group relative p-3 mb-3 rounded-xl border border-slate-200 transition-all duration-200 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 ${config.bg} border-l-[6px] ${config.border}`}
       onClick={onClick}
+      draggable
+      onDragStart={(e) => onDragStart && onDragStart(e, booking)}
     >
       {/* Header: Invoice & Balance */}
       <div className="flex justify-between items-center mb-3">
@@ -120,6 +130,10 @@ const BookingCell = ({
           </div>
         )}
       </div>
+      <Divider></Divider>
+      <Typography>
+        Picked up Date: {dayjs(booking.pickup_date).format("YYYY-MM-DD")}
+      </Typography>
 
       {/* Items List */}
       <div className="flex items-start gap-2 mb-3">

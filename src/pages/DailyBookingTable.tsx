@@ -229,6 +229,41 @@ const DailyBookingTable = () => {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent, booking: Booking) => {
+    e.dataTransfer.setData("bookingId", booking.id.toString());
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (e: React.DragEvent, date: Date) => {
+    e.preventDefault();
+    const bookingId = e.dataTransfer.getData("bookingId");
+    if (!bookingId) return;
+
+    const targetDateStr = formatDate(date);
+
+    // Optimistic update
+    const movedBooking = bookings.find((b) => b.id.toString() === bookingId);
+    if (movedBooking && movedBooking.booking_date === targetDateStr) return; // Dropped on same day
+
+    if (window.confirm(`Move booking to ${targetDateStr}?`)) {
+      try {
+        await bookingsAPI.update(parseInt(bookingId), {
+          event_date: targetDateStr,
+        });
+        toast.success(`Booking moved to ${targetDateStr}`);
+        refreshBookings();
+      } catch (error) {
+        console.error("Failed to move booking", error);
+        toast.error("Failed to move booking");
+      }
+    }
+  };
+
   const filteredBookings = searchTerm
     ? bookings.filter(
         (b) =>
@@ -335,6 +370,8 @@ const DailyBookingTable = () => {
                 <div
                   className="flex-1 p-2 bg-gray-50/50 hover:bg-gray-100 transition-colors cursor-pointer"
                   onClick={() => handleDayClick(day)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, day)}
                 >
                   {dayBookings.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-gray-400 text-sm italic">
@@ -353,6 +390,7 @@ const DailyBookingTable = () => {
                           handleBookingClick(b, {} as any)
                         }
                         actionLoading={actionLoading}
+                        onDragStart={handleDragStart}
                       />
                     ))
                   )}

@@ -260,17 +260,26 @@ const BookingsList = () => {
   };
 
   const handleDeletePayment = async (bookingId: number, paymentId: number) => {
+    if (!window.confirm("Are you sure you want to delete this payment?"))
+      return;
+
     try {
       const response = await bookingsAPI.deletePayment(bookingId, paymentId);
       const updatedBooking = response.data.data || response.data;
+
       setBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? updatedBooking : b)),
       );
+
+      // Also update the payment history dialog if it's open for this booking
+      if (paymentHistoryBooking?.id === bookingId) {
+        setPaymentHistoryBooking(updatedBooking);
+      }
+
       toast.success("Payment deleted successfully!");
     } catch (error) {
       console.error("Error deleting payment:", error);
       toast.error("Failed to delete payment.");
-      throw error;
     }
   };
 
@@ -957,13 +966,32 @@ const BookingsList = () => {
                           </Typography>
                         </Stack>
                       </Stack>
-                      <Stack alignItems="flex-end">
-                        <Typography variant="caption" color="text.secondary">
-                          Recorded by
-                        </Typography>
-                        <Typography variant="caption" fontWeight="600">
-                          {payment.user?.name || "System"}
-                        </Typography>
+                      <Stack alignItems="flex-end" spacing={0.5}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Stack alignItems="flex-end">
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Recorded by
+                            </Typography>
+                            <Typography variant="caption" fontWeight="600">
+                              {payment.user?.name || "System"}
+                            </Typography>
+                          </Stack>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() =>
+                              handleDeletePayment(
+                                paymentHistoryBooking.id,
+                                payment.id,
+                              )
+                            }
+                          >
+                            <Trash2 size={16} />
+                          </IconButton>
+                        </Stack>
                       </Stack>
                     </Stack>
                     {payment.notes && (
