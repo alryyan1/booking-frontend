@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useOutletContext } from "react-router-dom";
 import {
   bookingsAPI,
   customersAPI,
@@ -70,6 +71,7 @@ const filterOptions = createFilterOptions<Customer>({
 });
 
 const BookingsList = () => {
+  const { selectedDate } = useOutletContext<{ selectedDate: Date | null }>();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -129,6 +131,9 @@ const BookingsList = () => {
         search: searchTerm || undefined, // Keep generic search if needed
         page: page + 1, // Laravel uses 1-based pagination
         per_page: rowsPerPage,
+        event_date: selectedDate
+          ? dayjs(selectedDate).format("YYYY-MM-DD")
+          : undefined,
       };
       const response = await bookingsAPI.getAll(params);
 
@@ -160,6 +165,7 @@ const BookingsList = () => {
     selectedItem,
     selectedAccessory,
     selectedCategory,
+    selectedDate,
     page,
     rowsPerPage,
   ]);

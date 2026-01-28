@@ -69,6 +69,7 @@ interface BookingFormProps {
   onCancel: () => void;
   onDelete?: (id: number) => void;
   bookingDate?: string;
+  categoryId?: number;
 }
 
 interface FormValues {
@@ -91,6 +92,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   onCancel,
   onDelete,
   bookingDate,
+  categoryId,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -161,6 +163,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
           accessoriesAPI.getAll(),
         ]);
         setInventory(itemsRes.data.data || itemsRes.data || []);
+        // If we have a categoryId, we can pre-filter or filter during render.
+        // For Autocomplete, filtering during render is often better or we can create a derived state.
         setCustomers(customersRes.data.data || customersRes.data || []);
         setAccessories(accessoriesRes.data.data || accessoriesRes.data || []);
       } catch (error) {
@@ -476,7 +480,13 @@ const BookingForm: React.FC<BookingFormProps> = ({
               <Box sx={{ display: "flex", gap: 1 }}>
                 <Autocomplete
                   fullWidth
-                  options={inventory}
+                  options={
+                    categoryId
+                      ? inventory.filter(
+                          (item) => item.category_id === categoryId,
+                        )
+                      : inventory
+                  }
                   getOptionLabel={(option) =>
                     `${option.name} (OMR ${option.price})`
                   }

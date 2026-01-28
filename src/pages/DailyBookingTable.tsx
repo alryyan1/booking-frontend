@@ -65,9 +65,7 @@ const DailyBookingTable = () => {
           const normalizedBookings = bookingsData.map((booking: any) => ({
             ...booking,
             // Use event_date as the primary booking date since time slots are gone
-            booking_date: booking.event_date
-              ? booking.event_date.split("T")[0]
-              : booking.pickup_date?.split("T")[0],
+            booking_date: booking.event_date.split("T")[0],
           }));
 
           setBookings(normalizedBookings);
@@ -98,9 +96,7 @@ const DailyBookingTable = () => {
     e.stopPropagation(); // Prevent triggering day click
     setSelectedBooking(booking);
     // Use booking date or event date as the selected date
-    const dateStr = booking.event_date
-      ? booking.event_date.split("T")[0]
-      : booking.booking_date || booking.pickup_date?.split("T")[0];
+    const dateStr = booking.event_date.split("T")[0];
     setSelectedDate(dateStr);
     setShowForm(true);
   };
@@ -135,9 +131,7 @@ const DailyBookingTable = () => {
       const bookingsData = (bookingsRes.data as any).data || [];
       const normalizedBookings = bookingsData.map((booking: any) => ({
         ...booking,
-        booking_date: booking.event_date
-          ? booking.event_date.split("T")[0]
-          : booking.pickup_date?.split("T")[0],
+        booking_date: booking.event_date.split("T")[0],
       }));
       setBookings(normalizedBookings);
     }
@@ -304,7 +298,7 @@ const DailyBookingTable = () => {
               </p>
               {category && (
                 <p className="text-xl text-indigo-600 mt-1 font-semibold">
-                  {category.name_en}
+                  {category.name_en} / {category.name_ar}
                 </p>
               )}
             </div>
@@ -419,6 +413,7 @@ const DailyBookingTable = () => {
               setSelectedDate(null);
             }}
             bookingDate={selectedDate || undefined}
+            categoryId={categoryId ? parseInt(categoryId) : undefined}
           />
         )}
       </div>

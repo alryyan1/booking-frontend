@@ -7,13 +7,19 @@ import {
   Box,
   Avatar,
   TextField,
+  IconButton,
+  Tooltip,
+  InputAdornment,
 } from "@mui/material";
+import { EventAvailable, Close } from "@mui/icons-material";
+import dayjs from "dayjs";
 
 import { useState } from "react";
 import ItemAvailabilityDialog from "./ItemAvailabilityDialog";
 
 interface AppBarProps {
   drawerWidth: number;
+  onDateChange?: (date: Date | null) => void;
 }
 
 interface User {
@@ -22,7 +28,7 @@ interface User {
   role: string;
 }
 
-const AppBar = ({ drawerWidth }: AppBarProps) => {
+const AppBar = ({ drawerWidth, onDateChange }: AppBarProps) => {
   const { user } = useAuth() as { user: User | null };
   const location = useLocation();
   const [showAvailability, setShowAvailability] = useState(false);
@@ -70,11 +76,17 @@ const AppBar = ({ drawerWidth }: AppBarProps) => {
             <TextField
               type="date"
               size="small"
+              value={checkDate ? dayjs(checkDate).format("YYYY-MM-DD") : ""}
               onChange={(e) => {
-                if (e.target.value) {
-                  setCheckDate(new Date(e.target.value));
+                const dateVal = e.target.value
+                  ? new Date(e.target.value)
+                  : null;
+                setCheckDate(dateVal);
+                if (dateVal) {
                   setShowAvailability(true);
-                  e.target.value = "";
+                  if (onDateChange) onDateChange(dateVal);
+                } else {
+                  if (onDateChange) onDateChange(null);
                 }
               }}
               sx={{
@@ -91,7 +103,35 @@ const AppBar = ({ drawerWidth }: AppBarProps) => {
                   },
                 },
               }}
+              InputProps={{
+                endAdornment: checkDate ? (
+                  <InputAdornment position="end">
+                    <Tooltip title="Clear Date">
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setCheckDate(null);
+                          if (onDateChange) onDateChange(null);
+                        }}
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </InputAdornment>
+                ) : null,
+              }}
             />
+            {checkDate && (
+              <Tooltip title="View Availability">
+                <IconButton
+                  onClick={() => setShowAvailability(true)}
+                  color="primary"
+                  sx={{ ml: 1 }}
+                >
+                  <EventAvailable />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
 
           <Box

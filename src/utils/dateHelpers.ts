@@ -10,7 +10,7 @@ import {
 } from "date-fns";
 import dayjs from "dayjs";
 
-export const getMonthName = (monthNumber) => {
+export const getMonthName = (monthNumber: number) => {
   const months = [
     "January",
     "February",
@@ -28,7 +28,7 @@ export const getMonthName = (monthNumber) => {
   return months[monthNumber - 1] || "";
 };
 
-export const getWeeksInMonth = (month, year) => {
+export const getWeeksInMonth = (month: number, year: number) => {
   const firstDay = new Date(year, month - 1, 1);
   const lastDay = new Date(year, month, 0);
 
@@ -59,18 +59,21 @@ export const getWeeksInMonth = (month, year) => {
   return weeks.slice(0, 4); // Return only first 4 weeks
 };
 
-export const getDaysInWeek = (weekStart, weekEnd) => {
+export const getDaysInWeek = (
+  weekStart: string | Date,
+  weekEnd: string | Date,
+) => {
   return eachDayOfInterval({
     start: new Date(weekStart),
     end: new Date(weekEnd),
   });
 };
 
-export const formatDate = (date) => {
+export const formatDate = (date: string | Date) => {
   return dayjs(date).format("YYYY-MM-DD");
 };
 
-export const formatTime = (time) => {
+export const formatTime = (time: string) => {
   if (!time) return "";
   const [hours, minutes] = time.split(":");
   const hour = parseInt(hours, 10);
